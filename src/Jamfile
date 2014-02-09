@@ -1,0 +1,12 @@
+SubDir TOP src ;
+
+
+C++Main zmbv :
+  main.cpp
+;
+LinkLibraries zmbv :
+  libzmbv.a
+;
+
+
+SubInclude TOP src libzmbv ;

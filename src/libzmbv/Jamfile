@@ -1,0 +1,6 @@
+SubDir TOP src libzmbv ;
+
+
+Library libzmbv.a :
+  zmbv.cpp
+;
