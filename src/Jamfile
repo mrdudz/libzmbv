@@ -1,9 +1,14 @@
 SubDir TOP src ;
 
 
-C++Main zmbv : main.cpp ;
+C++Main zmbv : test_cpp.cpp ;
 LinkLibraries zmbv : libzmbv.a ;
 C++LINKFLAGS on zmbv += -lz ;
 
+Main zmbvc : test_c.c ;
+LinkLibraries zmbvc : libczmbv.a ;
+LINKFLAGS on zmbvc += -lz ;
+
 
 SubInclude TOP src libzmbv ;
+SubInclude TOP src libczmbv ;
