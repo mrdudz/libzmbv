@@ -105,6 +105,12 @@ private:
   template<class P> INLINE void CopyBlock (int vx, int vy, FrameBlock *block);
 
 public:
+  enum {
+    FLAGS_NONE = 0,
+    FLAGS_KEYFRAME = 0x01
+  };
+
+public:
   VideoCodec ();
   ~VideoCodec ();
 
@@ -114,7 +120,7 @@ public:
   bool SetupCompress (int awidth, int aheight);
   bool SetupDecompress (int awidth, int aheight);
 
-  void CompressLines (int lineCount, const void *lineData[]);
+  void CompressLines (int lineCount, void *const lineData[]);
   // pal: 256*[r,g,b,a] (0..255)
   bool PrepareCompressFrame (int flags, zmbv_format_t aformat, const uint8_t *pal, void *writeBuf, int writeSize);
   int FinishCompressFrame (void);

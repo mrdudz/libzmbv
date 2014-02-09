@@ -207,13 +207,13 @@ template<class P> INLINE void VideoCodec::AddXorBlock (int vx, int vy, FrameBloc
 
 
 template<class P> void VideoCodec::AddXorFrame (void) {
-  int written = 0;
-  int lastvector = 0;
+  //int written = 0;
+  //int lastvector = 0;
   int8_t *vectors = (int8_t *)&work[workUsed];
   /* align the following xor data on 4 byte boundary*/
   workUsed = (workUsed+blockcount*2+3)&~3;
-  int totalx = 0;
-  int totaly = 0;
+  //int totalx = 0;
+  //int totaly = 0;
   for (int b = 0;b < blockcount; ++b) {
     FrameBlock *block = &blocks[b];
     int bestvx = 0;
@@ -267,7 +267,7 @@ bool VideoCodec::SetupDecompress (int awidth, int aheight) {
 
 
 /******************************************************************************/
-bool VideoCodec::PrepareCompressFrame (int flags,  zmbv_format_t aformat, const uint8_t *pal, void *writeBuf, int writeSize) {
+bool VideoCodec::PrepareCompressFrame (int flags, zmbv_format_t aformat, const uint8_t *pal, void *writeBuf, int writeSize) {
   int i;
   uint8_t *firstByte;
 
@@ -333,7 +333,7 @@ bool VideoCodec::PrepareCompressFrame (int flags,  zmbv_format_t aformat, const 
 
 
 /******************************************************************************/
-void VideoCodec::CompressLines (int lineCount, const void *lineData[]) {
+void VideoCodec::CompressLines (int lineCount, void *const lineData[]) {
   int linePitch = pitch*pixelsize;
   int lineWidth = width*pixelsize;
   int i = 0;
@@ -377,7 +377,7 @@ int VideoCodec::FinishCompressFrame (void) {
   zstream.next_out = (Bytef *)(compress.writeBuf+compress.writeDone);
   zstream.avail_out = compress.writeSize-compress.writeDone;
   zstream.total_out = 0;
-  int res = deflate(&zstream, Z_SYNC_FLUSH);
+  /*int res =*/ deflate(&zstream, Z_SYNC_FLUSH);
   return compress.writeDone+zstream.total_out;
 }
 
@@ -446,12 +446,12 @@ bool VideoCodec::DecompressFrame (void *framedata, int size) {
   zstream.next_out = (Bytef *)work;
   zstream.avail_out = bufsize;
   zstream.total_out = 0;
-  int res = inflate(&zstream, Z_FINISH);
-  workUsed= zstream.total_out;
+  /*int res =*/ inflate(&zstream, Z_FINISH);
+  workUsed = zstream.total_out;
   workPos = 0;
   if (tag&Mask_KeyFrame) {
     if (palsize) {
-      for (i = 0; i < palsize; ++i) {
+      for (int i = 0; i < palsize; ++i) {
         palette[i*4+0] = work[workPos++];
         palette[i*4+1] = work[workPos++];
         palette[i*4+2] = work[workPos++];
