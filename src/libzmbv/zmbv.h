@@ -90,9 +90,11 @@ private:
   int pixelsize;
 
   z_stream zstream;
+  int zstream_inited; // <0: deflate; >0: inflate; 0: not inited
 
   // methods
   void FreeBuffers (void);
+  void zlib_deinit (void);
   void CreateVectorTable (void);
   bool SetupBuffers (zmbv_format_t format, int blockwidth, int blockheight);
 

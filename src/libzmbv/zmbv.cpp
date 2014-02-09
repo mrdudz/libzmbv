@@ -71,10 +71,12 @@ VideoCodec::VideoCodec () {
   buf2 = 0;
   work = 0;
   memset(&zstream, 0, sizeof(zstream));
+  zstream_inited = 0;
 }
 
 
 VideoCodec::~VideoCodec () {
+  zlib_deinit();
   FreeBuffers();
 }
 
@@ -88,6 +90,16 @@ void VideoCodec::FreeBuffers (void) {
   buf2 = NULL;
   if (work) delete[] work;
   work = NULL;
+}
+
+
+void VideoCodec::zlib_deinit (void) {
+  if (zstream_inited < 0) {
+    deflateEnd(&zstream);
+  } else if (zstream_inited > 0) {
+    inflateEnd(&zstream);
+  }
+  zstream_inited = 0;
 }
 
 
@@ -251,7 +263,9 @@ bool VideoCodec::SetupCompress (int awidth, int aheight) {
   height = aheight;
   pitch = awidth+2*MAX_VECTOR;
   format = ZMBV_FORMAT_NONE;
+  zlib_deinit();
   if (deflateInit(&zstream, 4) != Z_OK) return false;
+  zstream_inited = -1;
   return true;
 }
 
@@ -261,7 +275,9 @@ bool VideoCodec::SetupDecompress (int awidth, int aheight) {
   height = aheight;
   pitch = awidth+2*MAX_VECTOR;
   format = ZMBV_FORMAT_NONE;
-  if (inflateInit (&zstream) != Z_OK) return false;
+  zlib_deinit();
+  if (inflateInit(&zstream) != Z_OK) return false;
+  zstream_inited = 1;
   return true;
 }
 

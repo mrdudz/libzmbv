@@ -72,6 +72,15 @@ static void scan_screens (void) {
 }
 
 
+static void finish_screens (void) {
+  if (screen_fd >= 0) close(screen_fd);
+  screen_fd = -1;
+  if (screens != NULL) free(screens);
+  screens = NULL;
+  screen_count = screen_alloted = 0;
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
 static void load_screen (int idx) {
   if (idx >= 0 && idx < screen_count) {
@@ -148,5 +157,6 @@ static void encode_screens (void) {
 int main (int argc, char *argv[]) {
   scan_screens();
   encode_screens();
+  finish_screens();
   return 0;
 }
