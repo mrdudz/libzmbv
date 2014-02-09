@@ -123,9 +123,7 @@ static void encode_screens (void) {
   if (fo != NULL) {
     for (int f = 0; f < screen_count; ++f) {
       int flags = (f%300 ? VideoCodec::FLAGS_NONE : VideoCodec::FLAGS_KEYFRAME);
-      if (f%256 == 0) {
-        printf("\r [%d/%d]\r", f, screen_count);
-      }
+      //if (f%256 == 0) printf("\r [%d/%d]\r", f, screen_count);
       load_screen(f);
       if (!vc->PrepareCompressFrame(flags, fmt, cur_pal, buf, buf_size)) {
         printf("\rFATAL: can't prepare frame for screen #%d\n", f);
@@ -143,7 +141,7 @@ static void encode_screens (void) {
       fwrite(&written, 4, 1, fo);
       if (written > 0) fwrite(buf, written, 1, fo);
     }
-    printf("\r [%d/%d]\n", screen_count, screen_count);
+    //printf("\r [%d/%d]\n", screen_count, screen_count);
     fclose(fo);
   } else {
     printf("\rFATAL: can't create output file!\n");
