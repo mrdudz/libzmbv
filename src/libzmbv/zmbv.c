@@ -378,6 +378,17 @@ void zmbv_codec_free (zmbv_codec_t zc) {
 
 
 /******************************************************************************/
+int zmbv_get_width (zmbv_codec_t zc) {
+  return (zc != NULL ? zc->width : -1);
+}
+
+
+int zmbv_get_height (zmbv_codec_t zc) {
+  return (zc != NULL ? zc->height : -1);
+}
+
+
+/******************************************************************************/
 static int zmbv_setup_buffers (zmbv_codec_t zc, zmbv_format_t format, int blockwidth, int blockheight) {
   if (zc != NULL) {
     int xblocks, xleft, yblocks, yleft, i;
@@ -587,6 +598,7 @@ int zmvb_encode_finish_frame (zmbv_codec_t zc) {
 }
 
 
+#ifndef ZMBV_EXCLUDE_DECODER
 /******************************************************************************/
 int zmbv_decode_setup (zmbv_codec_t zc, int width, int height) {
   if (zc != NULL && width > 0 && height > 0 && width <= 16384 && height <= 16384) {
@@ -615,16 +627,6 @@ const void *zmbv_get_decoded_line (zmbv_codec_t zc, int idx) {
     return zc->newframe+zc->pixelsize*(MAX_VECTOR+MAX_VECTOR*zc->pitch)+zc->pitch*zc->pixelsize*idx;
   }
   return NULL;
-}
-
-
-int zmbv_get_width (zmbv_codec_t zc) {
-  return (zc != NULL ? zc->width : -1);
-}
-
-
-int zmbv_get_height (zmbv_codec_t zc) {
-  return (zc != NULL ? zc->height : -1);
 }
 
 
@@ -702,3 +704,4 @@ extern int zmbv_decode_frame (zmbv_codec_t zc, const void *framedata, int size) 
   }
   return -1;
 }
+#endif

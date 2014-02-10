@@ -25,10 +25,8 @@ extern "C" {
 
 #include <stdint.h>
 
-
-/*
-#define CODEC_4CC "ZMBV"
-*/
+/* uncomment this to exclude decoding functions */
+/*#define ZMBV_EXCLUDE_DECODER*/
 
 
 typedef enum {
@@ -89,6 +87,7 @@ static inline int zmbv_encode_line (zmbv_codec_t zc, const void *line_data) { re
 extern int zmvb_encode_finish_frame (zmbv_codec_t zc);
 
 
+#ifndef ZMBV_EXCLUDE_DECODER
 /* return <0 on error; 0 on ok */
 extern int zmbv_decode_setup (zmbv_codec_t zc, int width, int height);
 /* return <0 on error; 0 on ok */
@@ -102,6 +101,8 @@ extern const uint8_t *zmbv_get_palette (zmbv_codec_t zc);
 extern const void *zmbv_get_decoded_line (zmbv_codec_t zc, int idx) ;
 /* this can be called after zmbv_decode_frame() */
 extern zmbv_format_t zmbv_get_decoded_format (zmbv_codec_t zc);
+#endif
+
 
 /* <0: error; 0: never */
 extern int zmbv_get_width (zmbv_codec_t zc);
