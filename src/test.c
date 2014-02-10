@@ -13,6 +13,11 @@
 
 
 ////////////////////////////////////////////////////////////////////////////////
+// each KEYFRAME_INTERVAL frame will be key one
+#define KEYFRAME_INTERVAL  (300)
+
+
+////////////////////////////////////////////////////////////////////////////////
 typedef struct {
   off_t scrofs;
   off_t palofs;
@@ -24,6 +29,9 @@ static int screen_count = 0;
 static uint8_t cur_pal[256*3];
 static uint8_t cur_screen[320*240];
 static int frameno;
+static int this_is_keyframe;
+static uint32_t *idxarray = NULL;
+static int index_ptr = 0;
 
 
 static zmvb_init_flags_t iflg = ZMBV_INIT_FLAG_NONE;
@@ -86,7 +94,8 @@ static int do_encode_screens (int (*writer) (void *udata, const void *buf, uint3
   if (zmbv_encode_setup(zc, 320, 240) < 0) { printf("FATAL: can't init encoder!\n"); goto quit; }
   frameno = 0;
   while (next_screen()) {
-    int flags = (frameno%300 ? ZMBV_PREP_FLAG_NONE : ZMBV_PREP_FLAG_KEYFRAME);
+    this_is_keyframe = ((frameno-1)%KEYFRAME_INTERVAL == 0);
+    int flags = (this_is_keyframe ? ZMBV_PREP_FLAG_KEYFRAME : ZMBV_PREP_FLAG_NONE);
     if (zmbv_encode_prepare_frame(zc, flags, fmt, cur_pal, buf, buf_size) < 0) {
       printf("\rFATAL: can't prepare frame for screen #%d\n", frameno);
       break;
@@ -132,14 +141,39 @@ static void encode_screens_to_avi (void) {
 
 ////////////////////////////////////////////////////////////////////////////////
 static int writer_bin (void *udata, const void *buf, uint32_t size) {
+  if (this_is_keyframe) {
+    off_t pos = lseek((long)udata, 0, SEEK_CUR);
+    if (pos == (off_t)-1) return -1;
+    idxarray[index_ptr++] = pos;
+  }
+  if (write((long)udata, &size, 4) != 4) return -1;
   return (write((long)udata, buf, size) == size ? 0 : -1);
 }
 
 
 static void encode_screens_to_bin (void) {
+  uint32_t scc = screen_count;
   int fd = open("stream.zmbv", O_WRONLY|O_CREAT|O_TRUNC, 0644);
   if (fd < 0) { printf("FATAL: can't create output file!\n"); return; }
+  if (idxarray != NULL) free(idxarray);
+  // frame count
+  write(fd, &scc, 4);
+  // idxarray count
+  scc = (screen_count/KEYFRAME_INTERVAL);
+  if (scc%KEYFRAME_INTERVAL) ++scc;
+  idxarray = malloc(scc*sizeof(idxarray[0]));
+  index_ptr = 0;
+  write(fd, &scc, 4);
+  // idxarray offset
+  write(fd, &scc, 4);
   do_encode_screens(writer_bin, (void *)fd);
+  // write idxarray
+  //printf("%d (%d)\n", (index_ptr == scc), index_ptr);
+  scc = lseek(fd, 0, SEEK_CUR);
+  write(fd, idxarray, index_ptr*sizeof(idxarray[0]));
+  // update header
+  lseek(fd, 4*2, SEEK_SET);
+  write(fd, &scc, 4);
   close(fd);
 }
 
