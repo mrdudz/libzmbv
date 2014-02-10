@@ -110,6 +110,7 @@ struct zmbv_codec_s {
   zmvb_init_flags_t init_flags;
   int complevel;
   zmbv_codec_mode_t mode;
+  int unpack_compression;
 
   zmbv_compress_t compress;
 
@@ -599,7 +600,8 @@ int zmvb_encode_finish_frame (zmbv_codec_t zc) {
       if (deflate(&zc->zstream, Z_SYNC_FLUSH) != Z_OK) return -1; /* the thing that should not be */
       return zc->compress.write_done+zc->zstream.total_out;
     } else {
-      memcpy(zc->compress.outbuf, zc->work, zc->workUsed);
+      memcpy(zc->compress.outbuf+zc->compress.write_done, zc->work, zc->workUsed);
+      return zc->workUsed+zc->compress.write_done;
     }
   }
   return -1;
@@ -618,6 +620,7 @@ int zmbv_decode_setup (zmbv_codec_t zc, int width, int height) {
     if (inflateInit(&zc->zstream) != Z_OK) return -1;
     zc->zstream_inited = 1;
     zc->mode = ZMBV_MODE_DECODER;
+    zc->unpack_compression = 0;
     return 0;
   }
   return -1;
@@ -649,7 +652,7 @@ int zmbv_decode_palette_changed (zmbv_codec_t zc, const void *framedata, int siz
 
 
 /******************************************************************************/
-extern int zmbv_decode_frame (zmbv_codec_t zc, const void *framedata, int size) {
+int zmbv_decode_frame (zmbv_codec_t zc, const void *framedata, int size) {
   if (zc != NULL && framedata != NULL && size > 1 && zc->mode == ZMBV_MODE_DECODER) {
     uint8_t tag;
     const uint8_t *data = (const uint8_t *)framedata;
@@ -662,17 +665,27 @@ extern int zmbv_decode_frame (zmbv_codec_t zc, const void *framedata, int size) 
       data += sizeof(zmbv_keyframe_header_t);
       if (size <= 0) return -1;
       if (header->low_version != DBZV_VERSION_LOW || header->high_version != DBZV_VERSION_HIGH) return -1;
+      if (header->compression > COMPRESSION_ZLIB) return -1; /* invalid compression mode */
       if (zc->format != (zmbv_format_t)header->format && zmbv_setup_buffers(zc, (zmbv_format_t)header->format, header->blockwidth, header->blockheight) < 0) return -1;
-      if (inflateReset(&zc->zstream) != Z_OK) return -1;
+      zc->unpack_compression = header->compression;
+      if (zc->unpack_compression == COMPRESSION_ZLIB) {
+        if (inflateReset(&zc->zstream) != Z_OK) return -1;
+      }
     }
-    zc->zstream.next_in = (Bytef *)data;
-    zc->zstream.avail_in = size;
-    zc->zstream.total_in = 0;
-    zc->zstream.next_out = (Bytef *)zc->work;
-    zc->zstream.avail_out = zc->bufsize;
-    zc->zstream.total_out = 0;
-    if (inflate(&zc->zstream, Z_SYNC_FLUSH/*Z_NO_FLUSH*/) != Z_OK) return -1; /* the thing that should not be */
-    zc->workUsed = zc->zstream.total_out;
+    if (size > zc->bufsize) return -1; /* frame too big */
+    if (zc->unpack_compression == COMPRESSION_ZLIB) {
+      zc->zstream.next_in = (Bytef *)data;
+      zc->zstream.avail_in = size;
+      zc->zstream.total_in = 0;
+      zc->zstream.next_out = (Bytef *)zc->work;
+      zc->zstream.avail_out = zc->bufsize;
+      zc->zstream.total_out = 0;
+      if (inflate(&zc->zstream, Z_SYNC_FLUSH/*Z_NO_FLUSH*/) != Z_OK) return -1; /* the thing that should not be */
+      zc->workUsed = zc->zstream.total_out;
+    } else {
+      if (size > 0) memcpy(zc->work, data, size);
+      zc->workUsed = size;
+    }
     zc->workPos = 0;
     if (tag&FRAME_MASK_KEYFRAME) {
       if (zc->palsize) {
