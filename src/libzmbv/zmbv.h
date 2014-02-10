@@ -56,8 +56,7 @@ extern int zmbv_work_buffer_size (int width, int height, zmbv_format_t fmt);
 
 
 typedef enum {
-  ZMBV_INIT_FLAG_NONE = 0,
-  ZMBV_INIT_FLAG_NOZLIB = 0x01
+  ZMBV_INIT_FLAG_NONE = 0
 } zmvb_init_flags_t;
 
 /* complevel values */
@@ -93,11 +92,20 @@ extern int zmvb_encode_finish_frame (zmbv_codec_t zc);
 /* return <0 on error; 0 on ok */
 extern int zmbv_decode_setup (zmbv_codec_t zc, int width, int height);
 /* return <0 on error; 0 on ok */
-extern int zmbv_decode_frame (zmbv_codec_t zc, void *framedata, int size);
-/* this can be called after zmbv_decode_frame() */
-extern const uint8_t *zmbv_get_palette (zmbv_codec_t zc);
+extern int zmbv_decode_frame (zmbv_codec_t zc, const void *framedata, int size);
 /* return !0 if palette was be changed on this frame */
 extern int zmbv_decode_is_palette_changed (zmbv_codec_t zc, const void *framedata, int size);
+
+/* this can be called after zmbv_decode_frame() */
+extern const uint8_t *zmbv_get_palette (zmbv_codec_t zc);
+/* this can be called after zmbv_decode_frame() */
+extern const void *zmbv_get_decoded_buffer (zmbv_codec_t zc);
+/* this can be called after zmbv_decode_frame() */
+extern zmbv_format_t zmbv_get_decoded_format (zmbv_codec_t zc);
+
+/* <0: error; 0: never */
+extern int zmbv_get_width (zmbv_codec_t zc);
+extern int zmbv_get_height (zmbv_codec_t zc);
 
 
 #ifdef __cplusplus

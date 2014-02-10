@@ -99,9 +99,17 @@ typedef struct {
 } zmbv_compress_t;
 
 
+typedef enum {
+  ZMBV_MODE_UNKNOWN,
+  ZMBV_MODE_ENCODER,
+  ZMBV_MODE_DECODER
+} zmbv_codec_mode_t;
+
+
 struct zmbv_codec_s {
   zmvb_init_flags_t init_flags;
   int complevel;
+  zmbv_codec_mode_t mode;
 
   zmbv_compress_t compress;
 
@@ -329,6 +337,7 @@ zmbv_codec_t zmbv_codec_new (zmvb_init_flags_t flags, int complevel) {
     else if (complevel > 9) complevel = 9;
     zc->complevel = complevel;
     zmbv_create_vector_table(zc);
+    zc->mode = ZMBV_MODE_UNKNOWN;
   }
   return zc;
 }
@@ -430,10 +439,9 @@ int zmbv_encode_setup (zmbv_codec_t zc, int width, int height) {
     zc->pitch = width+2*MAX_VECTOR;
     zc->format = ZMBV_FORMAT_NONE;
     zmbv_zlib_deinit(zc);
-    if (!(zc->init_flags&ZMBV_INIT_FLAG_NOZLIB)) {
-      if (deflateInit(&zc->zstream, zc->complevel) != Z_OK) return -1;
-      zc->zstream_inited = -1;
-    }
+    if (deflateInit(&zc->zstream, zc->complevel) != Z_OK) return -1;
+    zc->zstream_inited = -1;
+    zc->mode = ZMBV_MODE_ENCODER;
     return 0;
   }
   return -1;
@@ -446,6 +454,8 @@ int zmbv_encode_prepare_frame (zmbv_codec_t zc, zmvb_prepare_flags_t flags, zmbv
   const uint8_t *plt = (const uint8_t *)pal;
 
   if (zc == NULL) return -1;
+  if (zc->mode != ZMBV_MODE_ENCODER) return -1;
+
   /* check for valid formats */
   switch (fmt) {
     case ZMBV_FORMAT_8BPP:
@@ -484,7 +494,7 @@ int zmbv_encode_prepare_frame (zmbv_codec_t zc, zmvb_prepare_flags_t flags, zmbv
     zmbv_keyframe_header_t *header = (zmbv_keyframe_header_t *)(zc->compress.outbuf+zc->compress.write_done);
     header->high_version = DBZV_VERSION_HIGH;
     header->low_version = DBZV_VERSION_LOW;
-    header->compression = (!(zc->init_flags&ZMBV_INIT_FLAG_NOZLIB) ? COMPRESSION_ZLIB : COMPRESSION_NONE);
+    header->compression = COMPRESSION_ZLIB;
     header->format = zc->format;
     header->blockwidth = 16;
     header->blockheight = 16;
@@ -504,7 +514,7 @@ int zmbv_encode_prepare_frame (zmbv_codec_t zc, zmvb_prepare_flags_t flags, zmbv
       }
     }
     /* restart deflate */
-    if (!(zc->init_flags&ZMBV_INIT_FLAG_NOZLIB)) deflateReset(&zc->zstream);
+    deflateReset(&zc->zstream);
   } else {
     if (zc->palsize && plt != NULL && memcmp(plt, zc->palette, zc->palsize*3) != 0) {
       *firstByte |= FRAME_MASK_DELTA_PALETTE;
@@ -522,7 +532,7 @@ int zmbv_encode_prepare_frame (zmbv_codec_t zc, zmvb_prepare_flags_t flags, zmbv
 
 /******************************************************************************/
 int zmbv_encode_lines (zmbv_codec_t zc, int line_count, const void *const line_ptrs[]) {
-  if (zc != NULL) {
+  if (zc != NULL && zc->mode == ZMBV_MODE_ENCODER) {
     int line_pitch = zc->pitch*zc->pixelsize;
     int line_width = zc->width*zc->pixelsize;
     uint8_t *destStart = zc->newframe+zc->pixelsize*(MAX_VECTOR+(zc->compress.lines_done+MAX_VECTOR)*zc->pitch);
@@ -543,7 +553,7 @@ int zmbv_encode_lines (zmbv_codec_t zc, int line_count, const void *const line_p
 
 /******************************************************************************/
 int zmvb_encode_finish_frame (zmbv_codec_t zc) {
-  if (zc != NULL) {
+  if (zc != NULL && zc->mode == ZMBV_MODE_ENCODER) {
     uint8_t firstByte = *zc->compress.outbuf;
     if (firstByte&FRAME_MASK_KEYFRAME) {
       int i;
@@ -563,21 +573,15 @@ int zmvb_encode_finish_frame (zmbv_codec_t zc) {
         default: return -1; /* the thing that should not be */
       }
     }
-    if (!(zc->init_flags&ZMBV_INIT_FLAG_NOZLIB)) {
-      /* create the actual frame with compression */
-      zc->zstream.next_in = (Bytef *)zc->work;
-      zc->zstream.avail_in = zc->workUsed;
-      zc->zstream.total_in = 0;
-      zc->zstream.next_out = (Bytef *)(zc->compress.outbuf+zc->compress.write_done);
-      zc->zstream.avail_out = zc->compress.outbuf_size-zc->compress.write_done;
-      zc->zstream.total_out = 0;
-      if (deflate(&zc->zstream, Z_SYNC_FLUSH) != Z_OK) return -1; /* the thing that should not be */
-      return zc->compress.write_done+zc->zstream.total_out;
-    } else {
-      /* just spit out uncompressed frame */
-      memcpy(zc->compress.outbuf, zc->work, zc->workUsed);
-      return zc->workUsed;
-    }
+    /* create the actual frame with compression */
+    zc->zstream.next_in = (Bytef *)zc->work;
+    zc->zstream.avail_in = zc->workUsed;
+    zc->zstream.total_in = 0;
+    zc->zstream.next_out = (Bytef *)(zc->compress.outbuf+zc->compress.write_done);
+    zc->zstream.avail_out = zc->compress.outbuf_size-zc->compress.write_done;
+    zc->zstream.total_out = 0;
+    if (deflate(&zc->zstream, Z_SYNC_FLUSH) != Z_OK) return -1; /* the thing that should not be */
+    return zc->compress.write_done+zc->zstream.total_out;
   }
   return -1;
 }
@@ -593,6 +597,8 @@ int zmbv_decode_setup (zmbv_codec_t zc, int width, int height) {
     zmbv_zlib_deinit(zc);
     if (inflateInit(&zc->zstream) != Z_OK) return -1;
     zc->zstream_inited = 1;
+    zc->mode = ZMBV_MODE_DECODER;
+    return 0;
   }
   return -1;
 }
@@ -604,20 +610,40 @@ const uint8_t *zmbv_get_palette (zmbv_codec_t zc) {
 }
 
 
+const void *zmbv_get_decoded_buffer (zmbv_codec_t zc) {
+  return (zc != NULL ? zc->newframe : NULL);
+}
+
+
+int zmbv_get_width (zmbv_codec_t zc) {
+  return (zc != NULL ? zc->width : -1);
+}
+
+
+int zmbv_get_height (zmbv_codec_t zc) {
+  return (zc != NULL ? zc->height : -1);
+}
+
+
+zmbv_format_t zmbv_get_decoded_format (zmbv_codec_t zc) {
+  return (zc != NULL ? zc->format : ZMBV_FORMAT_NONE);
+}
+
+
 int zmbv_decode_palette_changed (zmbv_codec_t zc, const void *framedata, int size) {
   return (zc != NULL && framedata != NULL && size > 0 ? (((const uint8_t *)framedata)[0]&FRAME_MASK_DELTA_PALETTE) != 0 : 0);
 }
 
 
 /******************************************************************************/
-extern int zmbv_decode_frame (zmbv_codec_t zc, void *framedata, int size) {
-  if (zc != NULL && framedata != NULL && size > 1) {
+extern int zmbv_decode_frame (zmbv_codec_t zc, const void *framedata, int size) {
+  if (zc != NULL && framedata != NULL && size > 1 && zc->mode == ZMBV_MODE_DECODER) {
     uint8_t tag;
-    uint8_t *data = (uint8_t *)framedata;
+    const uint8_t *data = (const uint8_t *)framedata;
     tag = *data++;
     if (--size <= 0) return -1;
     if (tag&FRAME_MASK_KEYFRAME) {
-      zmbv_keyframe_header_t *header = (zmbv_keyframe_header_t *)data;
+      const zmbv_keyframe_header_t *header = (const zmbv_keyframe_header_t *)data;
       size -= sizeof(zmbv_keyframe_header_t);
       data += sizeof(zmbv_keyframe_header_t);
       if (size <= 0) return -1;
@@ -631,7 +657,12 @@ extern int zmbv_decode_frame (zmbv_codec_t zc, void *framedata, int size) {
     zc->zstream.next_out = (Bytef *)zc->work;
     zc->zstream.avail_out = zc->bufsize;
     zc->zstream.total_out = 0;
-    if (inflate(&zc->zstream, Z_FINISH) != Z_OK) return -1; /* the thing that should not be */
+    //if (inflate(&zc->zstream, Z_FINISH) != Z_OK) return -1; /* the thing that should not be */
+    {
+      int res = inflate(&zc->zstream, Z_FINISH);
+      printf("inflate res=%d\n", res);
+      if (res != Z_OK) return -1; /* the thing that should not be */
+    }
     zc->workUsed = zc->zstream.total_out;
     zc->workPos = 0;
     if (tag&FRAME_MASK_KEYFRAME) {
@@ -651,9 +682,9 @@ extern int zmbv_decode_frame (zmbv_codec_t zc, void *framedata, int size) {
         zc->workPos += zc->width*zc->pixelsize;
       }
     } else {
-      data = zc->oldframe;
+      uint8_t *tmp = zc->oldframe;
       zc->oldframe = zc->newframe;
-      zc->newframe = data;
+      zc->newframe = tmp;
       if (tag&FRAME_MASK_DELTA_PALETTE) {
         for (int i = 0; i < zc->palsize; ++i) {
           zc->palette[i*3+0] ^= zc->work[zc->workPos++];

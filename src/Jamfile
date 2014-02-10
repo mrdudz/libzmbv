@@ -5,5 +5,9 @@ Main zmbvc : test.c ;
 LinkLibraries zmbvc : libzmbv.a ;
 LINKFLAGS on zmbvc += -lz ;
 
+Main zmbv_unpack : unpack.c ;
+LinkLibraries zmbv_unpack : libzmbv.a ;
+LINKFLAGS on zmbv_unpack += -lz ;
+
 
 SubInclude TOP src libzmbv ;
