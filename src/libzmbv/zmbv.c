@@ -100,6 +100,8 @@ typedef struct {
 
 
 struct zmbv_codec_s {
+  zmvb_init_flags_t init_flags;
+
   zmbv_compress_t compress;
 
   zmbv_codec_vector_t VectorTable[512];
@@ -309,7 +311,7 @@ static void zmbv_create_vector_table (zmbv_codec_t zc) {
 }
 
 
-zmbv_codec_t zmbv_codec_new (void) {
+zmbv_codec_t zmbv_codec_new (zmvb_init_flags_t flags) {
   zmbv_codec_t zc = malloc(sizeof(*zc));
   if (zc != NULL) {
     /*
@@ -321,6 +323,7 @@ zmbv_codec_t zmbv_codec_new (void) {
     zc->zstream_inited = 0;
     */
     memset(zc, 0, sizeof(*zc));
+    zc->init_flags = flags;
     zmbv_create_vector_table(zc);
   }
   return zc;
@@ -423,8 +426,10 @@ int zmbv_encode_setup (zmbv_codec_t zc, int width, int height) {
     zc->pitch = width+2*MAX_VECTOR;
     zc->format = ZMBV_FORMAT_NONE;
     zmbv_zlib_deinit(zc);
-    if (deflateInit(&zc->zstream, 4) != Z_OK) return -1;
-    zc->zstream_inited = -1;
+    if (!(zc->init_flags&ZMBV_INIT_FLAG_NOZLIB)) {
+      if (deflateInit(&zc->zstream, 4) != Z_OK) return -1;
+      zc->zstream_inited = -1;
+    }
     return 0;
   }
   return -1;
@@ -449,7 +454,7 @@ int zmbv_encode_prepare_frame (zmbv_codec_t zc, zmvb_prepare_flags_t flags, zmbv
 
   if (fmt != zc->format) {
     if (zmbv_setup_buffers(zc, fmt, 16, 16) < 0) return -1;
-    flags |= ZMBV_FLAGS_KEYFRAME; /* force a keyframe */
+    flags |= ZMBV_PREP_FLAG_KEYFRAME; /* force a keyframe */
   }
 
   /* replace oldframe with new frame */
@@ -469,13 +474,13 @@ int zmbv_encode_prepare_frame (zmbv_codec_t zc, zmvb_prepare_flags_t flags, zmbv
   /* reset the work buffer */
   zc->workUsed = 0;
   zc->workPos = 0;
-  if (flags&ZMBV_FLAGS_KEYFRAME) {
+  if (flags&ZMBV_PREP_FLAG_KEYFRAME) {
     /* make a keyframe */
     *firstByte |= FRAME_MASK_KEYFRAME;
     zmbv_keyframe_header_t *header = (zmbv_keyframe_header_t *)(zc->compress.outbuf+zc->compress.write_done);
     header->high_version = DBZV_VERSION_HIGH;
     header->low_version = DBZV_VERSION_LOW;
-    header->compression = COMPRESSION_ZLIB;
+    header->compression = (!(zc->init_flags&ZMBV_INIT_FLAG_NOZLIB) ? COMPRESSION_ZLIB : COMPRESSION_NONE);
     header->format = zc->format;
     header->blockwidth = 16;
     header->blockheight = 16;
@@ -495,7 +500,7 @@ int zmbv_encode_prepare_frame (zmbv_codec_t zc, zmvb_prepare_flags_t flags, zmbv
       }
     }
     /* restart deflate */
-    deflateReset(&zc->zstream);
+    if (!(zc->init_flags&ZMBV_INIT_FLAG_NOZLIB)) deflateReset(&zc->zstream);
   } else {
     if (zc->palsize && plt != NULL && memcmp(plt, zc->palette, zc->palsize*3) != 0) {
       *firstByte |= FRAME_MASK_DELTA_PALETTE;
@@ -554,15 +559,21 @@ int zmvb_encode_finish_frame (zmbv_codec_t zc) {
         default: return -1; /* the thing that should not be */
       }
     }
-    /* create the actual frame with compression */
-    zc->zstream.next_in = (Bytef *)zc->work;
-    zc->zstream.avail_in = zc->workUsed;
-    zc->zstream.total_in = 0;
-    zc->zstream.next_out = (Bytef *)(zc->compress.outbuf+zc->compress.write_done);
-    zc->zstream.avail_out = zc->compress.outbuf_size-zc->compress.write_done;
-    zc->zstream.total_out = 0;
-    if (deflate(&zc->zstream, Z_SYNC_FLUSH) != Z_OK) return -1; /* the thing that should not be */
-    return zc->compress.write_done+zc->zstream.total_out;
+    if (!(zc->init_flags&ZMBV_INIT_FLAG_NOZLIB)) {
+      /* create the actual frame with compression */
+      zc->zstream.next_in = (Bytef *)zc->work;
+      zc->zstream.avail_in = zc->workUsed;
+      zc->zstream.total_in = 0;
+      zc->zstream.next_out = (Bytef *)(zc->compress.outbuf+zc->compress.write_done);
+      zc->zstream.avail_out = zc->compress.outbuf_size-zc->compress.write_done;
+      zc->zstream.total_out = 0;
+      if (deflate(&zc->zstream, Z_SYNC_FLUSH) != Z_OK) return -1; /* the thing that should not be */
+      return zc->compress.write_done+zc->zstream.total_out;
+    } else {
+      /* just spit out uncompressed frame */
+      memcpy(zc->compress.outbuf, zc->work, zc->workUsed);
+      return zc->workUsed;
+    }
   }
   return -1;
 }

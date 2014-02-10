@@ -26,6 +26,9 @@ static uint8_t cur_pal[256*3];
 static uint8_t cur_screen[320*240];
 
 
+static zmvb_init_flags_t iflg = ZMBV_INIT_FLAG_NONE;
+
+
 ////////////////////////////////////////////////////////////////////////////////
 static void add_screen (off_t scrofs, off_t palofs) {
   if (screen_count+1 > screen_alloted) {
@@ -113,7 +116,7 @@ static void encode_screens (void) {
   void *buf;
   zmbv_codec_t zc;
   FILE *fo;
-  zc = zmbv_codec_new();
+  zc = zmbv_codec_new(iflg);
   if (zc == NULL) { printf("FATAL: can't create codec!\n"); return; }
   fmt = zmbv_bpp_to_format(8);
   buf_size = zmbv_work_buffer_size(320, 240, fmt);
@@ -124,7 +127,7 @@ static void encode_screens (void) {
   fo = fopen("stream.zmbv", "w");
   if (fo == NULL) { printf("FATAL: can't create output file!\n"); goto quit; }
   for (int f = 0; f < screen_count; ++f) {
-    int flags = (f%300 ? ZMBV_FLAGS_NONE : ZMBV_FLAGS_KEYFRAME);
+    int flags = (f%300 ? ZMBV_PREP_FLAG_NONE : ZMBV_PREP_FLAG_KEYFRAME);
     //if (f%256 == 0) printf("\r [%d/%d]\r", f, screen_count);
     load_screen(f);
     if (zmbv_encode_prepare_frame(zc, flags, fmt, cur_pal, buf, buf_size) < 0) {
@@ -161,7 +164,7 @@ static void encode_screens_to_avi (void) {
   void *buf;
   zmbv_codec_t zc;
   zmbv_avi_t zavi;
-  zc = zmbv_codec_new();
+  zc = zmbv_codec_new(iflg);
   if (zc == NULL) { printf("FATAL: can't create codec!\n"); return; }
   fmt = zmbv_bpp_to_format(8);
   buf_size = zmbv_work_buffer_size(320, 240, fmt);
@@ -172,7 +175,7 @@ static void encode_screens_to_avi (void) {
   zavi = zmbv_avi_start("stream.avi", 320, 240, 18);
   if (zavi == NULL) { printf("FATAL: can't create output file!\n"); goto quit; }
   for (int f = 0; f < screen_count; ++f) {
-    int flags = (f%300 ? ZMBV_FLAGS_NONE : ZMBV_FLAGS_KEYFRAME);
+    int flags = (f%300 ? ZMBV_PREP_FLAG_NONE : ZMBV_PREP_FLAG_KEYFRAME);
     //if (f%256 == 0) printf("\r [%d/%d]\r", f, screen_count);
     load_screen(f);
     if (zmbv_encode_prepare_frame(zc, flags, fmt, cur_pal, buf, buf_size) < 0) {
@@ -205,6 +208,7 @@ quit:
 
 ////////////////////////////////////////////////////////////////////////////////
 int main (int argc, char *argv[]) {
+  if (argc > 1) iflg |= ZMBV_INIT_FLAG_NOZLIB;
   scan_screens();
   printf("encoding to zmbv...\n");
   encode_screens();

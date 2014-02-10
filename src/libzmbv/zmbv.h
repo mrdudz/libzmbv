@@ -55,13 +55,18 @@ extern zmbv_format_t zmbv_bpp_to_format (int bpp);
 extern int zmbv_work_buffer_size (int width, int height, zmbv_format_t fmt);
 
 
-extern zmbv_codec_t zmbv_codec_new (void);
+typedef enum {
+  ZMBV_INIT_FLAG_NONE = 0,
+  ZMBV_INIT_FLAG_NOZLIB = 0x01
+} zmvb_init_flags_t;
+
+extern zmbv_codec_t zmbv_codec_new (zmvb_init_flags_t flags);
 extern void zmbv_codec_free (zmbv_codec_t zc);
 
 
 typedef enum {
-  ZMBV_FLAGS_NONE = 0,
-  ZMBV_FLAGS_KEYFRAME = 0x01
+  ZMBV_PREP_FLAG_NONE = 0,
+  ZMBV_PREP_FLAG_KEYFRAME = 0x01
 } zmvb_prepare_flags_t;
 
 /* return <0 on error; 0 on ok */
