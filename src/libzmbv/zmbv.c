@@ -514,7 +514,7 @@ int zmbv_encode_prepare_frame (zmbv_codec_t zc, zmvb_prepare_flags_t flags, zmbv
       }
     }
     /* restart deflate */
-    deflateReset(&zc->zstream);
+    if (deflateReset(&zc->zstream) != Z_OK) return -1;
   } else {
     if (zc->palsize && plt != NULL && memcmp(plt, zc->palette, zc->palsize*3) != 0) {
       *firstByte |= FRAME_MASK_DELTA_PALETTE;
@@ -641,6 +641,7 @@ extern int zmbv_decode_frame (zmbv_codec_t zc, const void *framedata, int size) 
     uint8_t tag;
     const uint8_t *data = (const uint8_t *)framedata;
     tag = *data++;
+    if (tag > 2) return -1; /* for now we can have only 0, 1 or 2 in tag byte */
     if (--size <= 0) return -1;
     if (tag&FRAME_MASK_KEYFRAME) {
       const zmbv_keyframe_header_t *header = (const zmbv_keyframe_header_t *)data;
@@ -649,7 +650,7 @@ extern int zmbv_decode_frame (zmbv_codec_t zc, const void *framedata, int size) 
       if (size <= 0) return -1;
       if (header->low_version != DBZV_VERSION_LOW || header->high_version != DBZV_VERSION_HIGH) return -1;
       if (zc->format != (zmbv_format_t)header->format && zmbv_setup_buffers(zc, (zmbv_format_t)header->format, header->blockwidth, header->blockheight) < 0) return -1;
-      inflateReset(&zc->zstream);
+      if (inflateReset(&zc->zstream) != Z_OK) return -1;
     }
     zc->zstream.next_in = (Bytef *)data;
     zc->zstream.avail_in = size;
@@ -657,12 +658,7 @@ extern int zmbv_decode_frame (zmbv_codec_t zc, const void *framedata, int size) 
     zc->zstream.next_out = (Bytef *)zc->work;
     zc->zstream.avail_out = zc->bufsize;
     zc->zstream.total_out = 0;
-    //if (inflate(&zc->zstream, Z_FINISH) != Z_OK) return -1; /* the thing that should not be */
-    {
-      int res = inflate(&zc->zstream, Z_FINISH);
-      printf("inflate res=%d\n", res);
-      if (res != Z_OK) return -1; /* the thing that should not be */
-    }
+    if (inflate(&zc->zstream, Z_SYNC_FLUSH) != Z_OK) return -1; /* the thing that should not be */
     zc->workUsed = zc->zstream.total_out;
     zc->workPos = 0;
     if (tag&FRAME_MASK_KEYFRAME) {
