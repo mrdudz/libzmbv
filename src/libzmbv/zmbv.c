@@ -250,7 +250,7 @@ static inline void zmbv_unxor_block_##_pxsize (zmbv_codec_t zc, int vx, int vy, 
   _pxtype *pnew = ((_pxtype *)zc->newframe)+block->start; \
   for (int y = 0; y < block->dy; ++y) { \
     for (int x = 0; x < block->dx; ++x) { \
-      pnew[x] = pold[x]^*((_pxtype*)&zc->work[zc->workPos]); \
+      pnew[x] = pold[x]^*((_pxtype *)&zc->work[zc->workPos]); \
       zc->workPos += sizeof(_pxtype); \
     } \
     pold += zc->pitch; \
@@ -287,17 +287,17 @@ static inline void zmbv_unxor_frame_##_pxsize (zmbv_codec_t zc) { \
 }
 
 /* generate functions */
-ZMBV_UNXOR_BLOCK_TPL(int8_t,  8)
-ZMBV_UNXOR_BLOCK_TPL(int16_t,16)
-ZMBV_UNXOR_BLOCK_TPL(int32_t,32)
+ZMBV_UNXOR_BLOCK_TPL(uint8_t,  8)
+ZMBV_UNXOR_BLOCK_TPL(uint16_t,16)
+ZMBV_UNXOR_BLOCK_TPL(uint32_t,32)
 
-ZMBV_COPY_BLOCK_TPL(int8_t,  8)
-ZMBV_COPY_BLOCK_TPL(int16_t,16)
-ZMBV_COPY_BLOCK_TPL(int32_t,32)
+ZMBV_COPY_BLOCK_TPL(uint8_t,  8)
+ZMBV_COPY_BLOCK_TPL(uint16_t,16)
+ZMBV_COPY_BLOCK_TPL(uint32_t,32)
 
-ZMBV_UNXOR_FRAME_TPL(int8_t,  8)
-ZMBV_UNXOR_FRAME_TPL(int16_t,16)
-ZMBV_UNXOR_FRAME_TPL(int32_t,32)
+ZMBV_UNXOR_FRAME_TPL(uint8_t,  8)
+ZMBV_UNXOR_FRAME_TPL(uint16_t,16)
+ZMBV_UNXOR_FRAME_TPL(uint32_t,32)
 
 
 /******************************************************************************/
@@ -610,8 +610,11 @@ const uint8_t *zmbv_get_palette (zmbv_codec_t zc) {
 }
 
 
-const void *zmbv_get_decoded_buffer (zmbv_codec_t zc) {
-  return (zc != NULL ? zc->newframe : NULL);
+const void *zmbv_get_decoded_line (zmbv_codec_t zc, int idx) {
+  if (zc != NULL && zc->mode == ZMBV_MODE_DECODER && idx >= 0 && idx < zc->height) {
+    return zc->newframe+zc->pixelsize*(MAX_VECTOR+MAX_VECTOR*zc->pitch)+zc->pitch*zc->pixelsize*idx;
+  }
+  return NULL;
 }
 
 
@@ -658,7 +661,7 @@ extern int zmbv_decode_frame (zmbv_codec_t zc, const void *framedata, int size) 
     zc->zstream.next_out = (Bytef *)zc->work;
     zc->zstream.avail_out = zc->bufsize;
     zc->zstream.total_out = 0;
-    if (inflate(&zc->zstream, Z_SYNC_FLUSH) != Z_OK) return -1; /* the thing that should not be */
+    if (inflate(&zc->zstream, Z_SYNC_FLUSH/*Z_NO_FLUSH*/) != Z_OK) return -1; /* the thing that should not be */
     zc->workUsed = zc->zstream.total_out;
     zc->workPos = 0;
     if (tag&FRAME_MASK_KEYFRAME) {

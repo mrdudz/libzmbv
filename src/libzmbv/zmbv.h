@@ -99,7 +99,7 @@ extern int zmbv_decode_is_palette_changed (zmbv_codec_t zc, const void *framedat
 /* this can be called after zmbv_decode_frame() */
 extern const uint8_t *zmbv_get_palette (zmbv_codec_t zc);
 /* this can be called after zmbv_decode_frame() */
-extern const void *zmbv_get_decoded_buffer (zmbv_codec_t zc);
+extern const void *zmbv_get_decoded_line (zmbv_codec_t zc, int idx) ;
 /* this can be called after zmbv_decode_frame() */
 extern zmbv_format_t zmbv_get_decoded_format (zmbv_codec_t zc);
 
