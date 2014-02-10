@@ -326,4 +326,3 @@ int zmbv_avi_write_chunk_audio (zmbv_avi_t zavi, const void *data, int size) {
   }
   return -1;
 }
-
