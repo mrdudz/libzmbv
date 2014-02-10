@@ -101,6 +101,7 @@ typedef struct {
 
 struct zmbv_codec_s {
   zmvb_init_flags_t init_flags;
+  int complevel;
 
   zmbv_compress_t compress;
 
@@ -311,7 +312,7 @@ static void zmbv_create_vector_table (zmbv_codec_t zc) {
 }
 
 
-zmbv_codec_t zmbv_codec_new (zmvb_init_flags_t flags) {
+zmbv_codec_t zmbv_codec_new (zmvb_init_flags_t flags, int complevel) {
   zmbv_codec_t zc = malloc(sizeof(*zc));
   if (zc != NULL) {
     /*
@@ -324,6 +325,9 @@ zmbv_codec_t zmbv_codec_new (zmvb_init_flags_t flags) {
     */
     memset(zc, 0, sizeof(*zc));
     zc->init_flags = flags;
+    if (complevel < 0) complevel = 4;
+    else if (complevel > 9) complevel = 9;
+    zc->complevel = complevel;
     zmbv_create_vector_table(zc);
   }
   return zc;
@@ -427,7 +431,7 @@ int zmbv_encode_setup (zmbv_codec_t zc, int width, int height) {
     zc->format = ZMBV_FORMAT_NONE;
     zmbv_zlib_deinit(zc);
     if (!(zc->init_flags&ZMBV_INIT_FLAG_NOZLIB)) {
-      if (deflateInit(&zc->zstream, 4) != Z_OK) return -1;
+      if (deflateInit(&zc->zstream, zc->complevel) != Z_OK) return -1;
       zc->zstream_inited = -1;
     }
     return 0;

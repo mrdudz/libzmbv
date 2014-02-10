@@ -27,6 +27,7 @@ static uint8_t cur_screen[320*240];
 
 
 static zmvb_init_flags_t iflg = ZMBV_INIT_FLAG_NONE;
+static int complevel = -1;
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -116,7 +117,7 @@ static void encode_screens (void) {
   void *buf;
   zmbv_codec_t zc;
   FILE *fo;
-  zc = zmbv_codec_new(iflg);
+  zc = zmbv_codec_new(iflg, complevel);
   if (zc == NULL) { printf("FATAL: can't create codec!\n"); return; }
   fmt = zmbv_bpp_to_format(8);
   buf_size = zmbv_work_buffer_size(320, 240, fmt);
@@ -164,7 +165,7 @@ static void encode_screens_to_avi (void) {
   void *buf;
   zmbv_codec_t zc;
   zmbv_avi_t zavi;
-  zc = zmbv_codec_new(iflg);
+  zc = zmbv_codec_new(iflg, complevel);
   if (zc == NULL) { printf("FATAL: can't create codec!\n"); return; }
   fmt = zmbv_bpp_to_format(8);
   buf_size = zmbv_work_buffer_size(320, 240, fmt);
@@ -208,7 +209,11 @@ quit:
 
 ////////////////////////////////////////////////////////////////////////////////
 int main (int argc, char *argv[]) {
-  if (argc > 1) iflg |= ZMBV_INIT_FLAG_NOZLIB;
+  if (argc > 1) {
+    //iflg |= ZMBV_INIT_FLAG_NOZLIB;
+    complevel = atoi(argv[1]);
+    printf("using compression level %d\n", complevel);
+  }
   scan_screens();
   printf("encoding to zmbv...\n");
   encode_screens();

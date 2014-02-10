@@ -60,7 +60,15 @@ typedef enum {
   ZMBV_INIT_FLAG_NOZLIB = 0x01
 } zmvb_init_flags_t;
 
-extern zmbv_codec_t zmbv_codec_new (zmvb_init_flags_t flags);
+/* complevel values */
+enum {
+  ZMBV_NO_COMPRESSION = 0,
+  ZMBV_BEST_SPEED = 1,
+  ZMBV_BEST_COMPRESSION = 9,
+  ZMBV_DEFAULT_COMPRESSION = -1 /* level 4 */
+};
+
+extern zmbv_codec_t zmbv_codec_new (zmvb_init_flags_t flags, int complevel);
 extern void zmbv_codec_free (zmbv_codec_t zc);
 
 
