@@ -75,14 +75,6 @@ typedef struct __attribute__((packed,gcc_struct)) {
 } zmbvu_keyframe_header_t;
 
 
-typedef struct {
-  int lines_done;
-  int outbuf_size;
-  int write_done;
-  uint8_t *outbuf;
-} zmbvu_compress_t;
-
-
 typedef enum {
   ZMBVU_MODE_UNKNOWN,
   ZMBVU_MODE_DECODER
