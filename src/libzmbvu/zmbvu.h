@@ -25,6 +25,9 @@ extern "C" {
 
 #include <stdint.h>
 
+/* uncomment this to use system zlib instead of miniz */
+/*#define ZMBVU_USE_ZLIB*/
+
 
 typedef enum {
   ZMBVU_FORMAT_NONE  = 0x00,

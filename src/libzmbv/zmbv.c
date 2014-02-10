@@ -23,7 +23,23 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <zlib.h>
+#ifdef ZMBV_USE_ZLIB
+# include <zlib.h>
+# define mz_deflateInit   deflateInit
+# define mz_inflateInit   inflateInit
+# define mz_deflateEnd    deflateEnd
+# define mz_inflateEnd    inflateEnd
+# define mz_deflateReset  deflateReset
+# define mz_inflateReset  inflateReset
+# define mz_deflate       deflate
+# define mz_inflate       inflate
+# define mz_stream        z_stream
+# define MZ_OK            Z_OK
+# define MZ_SYNC_FLUSH    Z_SYNC_FLUSH
+#else
+# include "miniz.c"
+# define mz_inflateReset(_strm)  ({ int res = mz_inflateEnd(_strm); if (res == MZ_OK) res = mz_inflateInit(_strm); res; })
+#endif
 
 
 /******************************************************************************/
@@ -134,7 +150,7 @@ struct zmbv_codec_s {
   zmbv_format_t format;
   int pixelsize;
 
-  z_stream zstream;
+  mz_stream zstream;
   int zstream_inited; // <0: deflate; >0: inflate; 0: not inited
 };
 
@@ -361,8 +377,8 @@ static void zmbv_free_buffers (zmbv_codec_t zc) {
 static void zmbv_zlib_deinit (zmbv_codec_t zc) {
   if (zc != NULL) {
     switch (zc->zstream_inited) {
-      case -1: deflateEnd(&zc->zstream); break;
-      case 1: inflateEnd(&zc->zstream); break;
+      case -1: mz_deflateEnd(&zc->zstream); break;
+      case 1: mz_inflateEnd(&zc->zstream); break;
     }
     zc->zstream_inited = 0;
   }
@@ -452,7 +468,7 @@ int zmbv_encode_setup (zmbv_codec_t zc, int width, int height) {
     zc->format = ZMBV_FORMAT_NONE;
     zmbv_zlib_deinit(zc);
     if ((zc->init_flags&ZMBV_INIT_FLAG_NOZLIB) == 0) {
-      if (deflateInit(&zc->zstream, zc->complevel) != Z_OK) return -1;
+      if (mz_deflateInit(&zc->zstream, zc->complevel) != MZ_OK) return -1;
       zc->zstream_inited = -1;
     }
     zc->mode = ZMBV_MODE_ENCODER;
@@ -529,7 +545,7 @@ int zmbv_encode_prepare_frame (zmbv_codec_t zc, zmvb_prepare_flags_t flags, zmbv
     }
     /* restart deflate */
     if ((zc->init_flags&ZMBV_INIT_FLAG_NOZLIB) == 0) {
-      if (deflateReset(&zc->zstream) != Z_OK) return -1;
+      if (mz_deflateReset(&zc->zstream) != MZ_OK) return -1;
     }
   } else {
     if (zc->palsize && plt != NULL && memcmp(plt, zc->palette, zc->palsize*3) != 0) {
@@ -591,13 +607,13 @@ int zmvb_encode_finish_frame (zmbv_codec_t zc) {
     }
     if ((zc->init_flags&ZMBV_INIT_FLAG_NOZLIB) == 0) {
       /* create the actual frame with compression */
-      zc->zstream.next_in = (Bytef *)zc->work;
+      zc->zstream.next_in = (void *)zc->work;
       zc->zstream.avail_in = zc->workUsed;
       zc->zstream.total_in = 0;
-      zc->zstream.next_out = (Bytef *)(zc->compress.outbuf+zc->compress.write_done);
+      zc->zstream.next_out = (void *)(zc->compress.outbuf+zc->compress.write_done);
       zc->zstream.avail_out = zc->compress.outbuf_size-zc->compress.write_done;
       zc->zstream.total_out = 0;
-      if (deflate(&zc->zstream, Z_SYNC_FLUSH) != Z_OK) return -1; /* the thing that should not be */
+      if (mz_deflate(&zc->zstream, MZ_SYNC_FLUSH) != MZ_OK) return -1; /* the thing that should not be */
       return zc->compress.write_done+zc->zstream.total_out;
     } else {
       memcpy(zc->compress.outbuf+zc->compress.write_done, zc->work, zc->workUsed);
@@ -617,7 +633,7 @@ int zmbv_decode_setup (zmbv_codec_t zc, int width, int height) {
     zc->pitch = width+2*MAX_VECTOR;
     zc->format = ZMBV_FORMAT_NONE;
     zmbv_zlib_deinit(zc);
-    if (inflateInit(&zc->zstream) != Z_OK) return -1;
+    if (mz_inflateInit(&zc->zstream) != MZ_OK) return -1;
     zc->zstream_inited = 1;
     zc->mode = ZMBV_MODE_DECODER;
     zc->unpack_compression = 0;
@@ -669,18 +685,18 @@ int zmbv_decode_frame (zmbv_codec_t zc, const void *framedata, int size) {
       if (zc->format != (zmbv_format_t)header->format && zmbv_setup_buffers(zc, (zmbv_format_t)header->format, header->blockwidth, header->blockheight) < 0) return -1;
       zc->unpack_compression = header->compression;
       if (zc->unpack_compression == COMPRESSION_ZLIB) {
-        if (inflateReset(&zc->zstream) != Z_OK) return -1;
+        if (mz_inflateReset(&zc->zstream) != MZ_OK) return -1;
       }
     }
     if (size > zc->bufsize) return -1; /* frame too big */
     if (zc->unpack_compression == COMPRESSION_ZLIB) {
-      zc->zstream.next_in = (Bytef *)data;
+      zc->zstream.next_in = (void *)data;
       zc->zstream.avail_in = size;
       zc->zstream.total_in = 0;
-      zc->zstream.next_out = (Bytef *)zc->work;
+      zc->zstream.next_out = (void *)zc->work;
       zc->zstream.avail_out = zc->bufsize;
       zc->zstream.total_out = 0;
-      if (inflate(&zc->zstream, Z_SYNC_FLUSH/*Z_NO_FLUSH*/) != Z_OK) return -1; /* the thing that should not be */
+      if (mz_inflate(&zc->zstream, MZ_SYNC_FLUSH/*MZ_NO_FLUSH*/) != MZ_OK) return -1; /* the thing that should not be */
       zc->workUsed = zc->zstream.total_out;
     } else {
       if (size > 0) memcpy(zc->work, data, size);

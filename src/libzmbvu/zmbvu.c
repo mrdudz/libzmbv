@@ -22,7 +22,23 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <zlib.h>
+#if defined(ZMBV_USE_ZLIB) || defined(ZMBVU_USE_ZLIB)
+# include <zlib.h>
+# define mz_deflateInit   deflateInit
+# define mz_inflateInit   inflateInit
+# define mz_deflateEnd    deflateEnd
+# define mz_inflateEnd    inflateEnd
+# define mz_deflateReset  deflateReset
+# define mz_inflateReset  inflateReset
+# define mz_deflate       deflate
+# define mz_inflate       inflate
+# define mz_stream        z_stream
+# define MZ_OK            Z_OK
+# define MZ_SYNC_FLUSH    Z_SYNC_FLUSH
+#else
+# include "miniz.c"
+# define mz_inflateReset(_strm)  ({ int res = mz_inflateEnd(_strm); if (res == MZ_OK) res = mz_inflateInit(_strm); res; })
+#endif
 
 
 /******************************************************************************/
@@ -105,7 +121,7 @@ struct zmbvu_unpacker_s {
   zmbvu_format_t format;
   int pixelsize;
 
-  z_stream zstream;
+  mz_stream zstream;
   int zstream_inited; // <0: deflate; >0: inflate; 0: not inited
 };
 
@@ -224,7 +240,7 @@ static void zmbvu_free_buffers (zmbvu_unpacker_t zc) {
 
 static void zmbvu_zlib_deinit (zmbvu_unpacker_t zc) {
   if (zc != NULL) {
-    if (zc->zstream_inited) inflateEnd(&zc->zstream);
+    if (zc->zstream_inited) mz_inflateEnd(&zc->zstream);
     zc->zstream_inited = 0;
   }
 }
@@ -335,7 +351,7 @@ int zmbvu_decode_setup (zmbvu_unpacker_t zc, int width, int height) {
     zc->pitch = width+2*MAX_VECTOR;
     zc->format = ZMBVU_FORMAT_NONE;
     zmbvu_zlib_deinit(zc);
-    if (inflateInit(&zc->zstream) != Z_OK) return -1;
+    if (mz_inflateInit(&zc->zstream) != MZ_OK) return -1;
     zc->zstream_inited = 1;
     zc->mode = ZMBVU_MODE_DECODER;
     zc->unpack_compression = 0;
@@ -363,18 +379,18 @@ int zmbvu_decode_frame (zmbvu_unpacker_t zc, const void *framedata, int size) {
       if (zc->format != (zmbvu_format_t)header->format && zmbvu_setup_buffers(zc, (zmbvu_format_t)header->format, header->blockwidth, header->blockheight) < 0) return -1;
       zc->unpack_compression = header->compression;
       if (zc->unpack_compression == COMPRESSION_ZLIB) {
-        if (inflateReset(&zc->zstream) != Z_OK) return -1;
+        if (mz_inflateReset(&zc->zstream) != MZ_OK) return -1;
       }
     }
     if (size > zc->bufsize) return -1; /* frame too big */
     if (zc->unpack_compression == COMPRESSION_ZLIB) {
-      zc->zstream.next_in = (Bytef *)data;
+      zc->zstream.next_in = (void *)data;
       zc->zstream.avail_in = size;
       zc->zstream.total_in = 0;
-      zc->zstream.next_out = (Bytef *)zc->work;
+      zc->zstream.next_out = (void *)zc->work;
       zc->zstream.avail_out = zc->bufsize;
       zc->zstream.total_out = 0;
-      if (inflate(&zc->zstream, Z_SYNC_FLUSH/*Z_NO_FLUSH*/) != Z_OK) return -1; /* the thing that should not be */
+      if (mz_inflate(&zc->zstream, MZ_SYNC_FLUSH/*MZ_NO_FLUSH*/) != MZ_OK) return -1; /* the thing that should not be */
       zc->workUsed = zc->zstream.total_out;
     } else {
       if (size > 0) memcpy(zc->work, data, size);

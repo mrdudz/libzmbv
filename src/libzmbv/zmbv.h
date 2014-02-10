@@ -28,6 +28,9 @@ extern "C" {
 /* uncomment this to exclude decoding functions */
 /*#define ZMBV_EXCLUDE_DECODER*/
 
+/* uncomment this to use system zlib instead of miniz */
+/*#define ZMBV_USE_ZLIB*/
+
 
 typedef enum {
   ZMBV_FORMAT_NONE  = 0x00,
