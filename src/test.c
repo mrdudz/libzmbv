@@ -20,9 +20,7 @@ typedef struct {
 
 
 static int screen_fd = -1;
-static scrinfo_t *screens = NULL;
 static int screen_count = 0;
-static int screen_alloted = 0;
 static uint8_t cur_pal[256*3];
 static uint8_t cur_screen[320*240];
 static int frameno;
@@ -33,48 +31,13 @@ static int complevel = -1;
 
 
 ////////////////////////////////////////////////////////////////////////////////
-static void add_screen (off_t scrofs, off_t palofs) {
-  if (screen_count+1 > screen_alloted) {
-    screen_alloted = ((screen_count+1)|0x7ff)+1;
-    screens = (scrinfo_t *)realloc(screens, sizeof(screens[0])*screen_alloted);
-    if (screens == NULL) { fprintf(stderr, "OUT OF MEMORY!\n"); exit(1); }
-  }
-  screens[screen_count].scrofs = scrofs;
-  screens[screen_count].palofs = palofs;
-  ++screen_count;
-}
-
-
 static void scan_screens (void) {
-  uint16_t wdt = 0, hgt = 0;
-  uint8_t bpp = 0;
-  off_t lpal_ofs = 0;
-  screen_fd = open("stream.raw", O_RDONLY);
+  uint32_t scc;
+  screen_fd = open("stream.vpf", O_RDONLY);
   if (screen_fd < 0) { fprintf(stderr, "FATAL: can't open stream!\n"); exit(1); }
-  for (;;) {
-    uint8_t ec;
-    if (read(screen_fd, &ec, 1) != 1) break;
-    if (ec == 0) {
-      // new screen
-      if (wdt == 320 && hgt == 240 && bpp == 8) {
-        off_t pos = lseek(screen_fd, 0, SEEK_CUR);
-        add_screen(pos, lpal_ofs);
-      }
-      lseek(screen_fd, wdt*hgt, SEEK_CUR);
-    } else if (ec == 1) {
-      // param change
-      read(screen_fd, &wdt, 2);
-      read(screen_fd, &hgt, 2);
-      read(screen_fd, &bpp, 1);
-    } else if (ec == 2) {
-      // palette change
-      lpal_ofs = lseek(screen_fd, 0, SEEK_CUR);
-      lseek(screen_fd, 768, SEEK_CUR);
-    } else {
-      fprintf(stderr, "UNKNOWN EVENT: 0x%02x\n", ec);
-      exit(1);
-    }
-  }
+  if (read(screen_fd, &scc, 4) != 4) { fprintf(stderr, "FATAL: can't read screen count!\n"); exit(1); }
+  if (scc == 0) { fprintf(stderr, "FATAL: no screens!\n"); exit(1); }
+  screen_count = scc;
   printf("%d screens found\n", screen_count);
   frameno = 0;
 }
@@ -83,19 +46,15 @@ static void scan_screens (void) {
 static void finish_screens (void) {
   if (screen_fd >= 0) close(screen_fd);
   screen_fd = -1;
-  if (screens != NULL) free(screens);
-  screens = NULL;
-  screen_count = screen_alloted = 0;
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
 static void load_screen (int idx) {
   if (idx >= 0 && idx < screen_count) {
-    lseek(screen_fd, screens[idx].scrofs, SEEK_SET);
-    read(screen_fd, cur_screen, 320*240);
-    lseek(screen_fd, screens[idx].palofs, SEEK_SET);
+    lseek(screen_fd, 4+idx*(320*240+768), SEEK_SET);
     read(screen_fd, cur_pal, 768);
+    read(screen_fd, cur_screen, 320*240);
   }
 }
 
