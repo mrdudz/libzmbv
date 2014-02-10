@@ -1,6 +1,0 @@
-SubDir TOP src libczmbv ;
-
-
-Library libczmbv.a :
-  zmbv.c
-;

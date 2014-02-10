@@ -7,7 +7,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#include "libczmbv/zmbv.h"
+#include "libzmbv/zmbv.h"
+#include "libzmbv/zmbv_avi.h"
 
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -153,9 +154,62 @@ quit:
 
 
 ////////////////////////////////////////////////////////////////////////////////
+static void encode_screens_to_avi (void) {
+  zmbv_format_t fmt;
+  int buf_size;
+  int32_t written;
+  void *buf;
+  zmbv_codec_t zc;
+  zmbv_avi_t zavi;
+  zc = zmbv_codec_new();
+  if (zc == NULL) { printf("FATAL: can't create codec!\n"); return; }
+  fmt = zmbv_bpp_to_format(8);
+  buf_size = zmbv_work_buffer_size(320, 240, fmt);
+  printf("buf_size: %d\n", buf_size);
+  buf = malloc(buf_size);
+  if (buf == NULL) goto quit;
+  if (zmbv_encode_setup(zc, 320, 240) < 0) { printf("FATAL: can't init encoder!\n"); goto quit; }
+  zavi = zmbv_avi_start("stream.avi", 320, 240, 18);
+  if (zavi == NULL) { printf("FATAL: can't create output file!\n"); goto quit; }
+  for (int f = 0; f < screen_count; ++f) {
+    int flags = (f%300 ? ZMBV_FLAGS_NONE : ZMBV_FLAGS_KEYFRAME);
+    //if (f%256 == 0) printf("\r [%d/%d]\r", f, screen_count);
+    load_screen(f);
+    if (zmbv_encode_prepare_frame(zc, flags, fmt, cur_pal, buf, buf_size) < 0) {
+      printf("\rFATAL: can't prepare frame for screen #%d\n", f);
+      break;
+    }
+    for (int y = 0; y < 240; ++y) {
+      if (zmbv_encode_line(zc, cur_screen+y*320) < 0) {
+        printf("\rFATAL: can't encode line #%d for screen #%d\n", y, f);
+        break;
+      }
+    }
+    written = zmvb_encode_finish_frame(zc);
+    if (written < 0) {
+      printf("\rFATAL: can't finish frame for screen #%d\n", f);
+      break;
+    }
+    if (zmbv_avi_write_chunk_video(zavi, buf, written) < 0) {
+      printf("\rFATAL: can't write video data for screen #%d\n", f);
+      break;
+    }
+  }
+  //printf("\r [%d/%d]\n", screen_count, screen_count);
+  zmbv_avi_stop(zavi);
+quit:
+  if (buf != NULL) free(buf);
+  zmbv_codec_free(zc);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
 int main (int argc, char *argv[]) {
   scan_screens();
+  printf("encoding to zmbv...\n");
   encode_screens();
+  printf("encoding to avi...\n");
+  encode_screens_to_avi();
   finish_screens();
   return 0;
 }

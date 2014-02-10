@@ -2,5 +2,6 @@ SubDir TOP src libzmbv ;
 
 
 Library libzmbv.a :
-  zmbv.cpp
+  zmbv.c
+  zmbv_avi.c
 ;
