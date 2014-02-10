@@ -183,37 +183,39 @@ int zmbv_avi_stop (zmbv_avi_t zavi) {
       AVIOUTd(0); // ClrUsed: Number of colors used
       AVIOUTd(0); // ClrImportant: Number of colors important
 
-      // audio stream list
-      AVIOUT4("LIST");
-      AVIOUTd(4+8+56+8+16); // Length of list in bytes
-      AVIOUT4("strl");
-      // the audio stream header
-      AVIOUT4("strh");
-      AVIOUTd(56); // # of bytes to follow
-      AVIOUT4("auds");
-      AVIOUTd(0); // Format (Optionally)
-      AVIOUTd(0); // Flags
-      AVIOUTd(0); // Reserved, MS says: wPriority, wLanguage
-      AVIOUTd(0); // InitialFrames
-      AVIOUTd(4); // Scale
-      AVIOUTd(zavi->audiorate*4); // rate, actual rate is scale/rate
-      AVIOUTd(0); // Start
-      if (!zavi->audiorate) zavi->audiorate = 1;
-      AVIOUTd(zavi->audiowritten/4); // Length
-      AVIOUTd(0); // SuggestedBufferSize
-      AVIOUTd(~0); // Quality
-      AVIOUTd(4); // SampleSize
-      AVIOUTd(0); // Frame
-      AVIOUTd(0); // Frame
-      // the audio stream format
-      AVIOUT4("strf");
-      AVIOUTd(16); // # of bytes to follow
-      AVIOUTw(1); // Format, WAVE_ZMBV_FORMAT_PCM
-      AVIOUTw(2); // Number of channels
-      AVIOUTd(zavi->audiorate); // SamplesPerSec
-      AVIOUTd(zavi->audiorate*4); // AvgBytesPerSec
-      AVIOUTw(4); // BlockAlign
-      AVIOUTw(16); // BitsPerSample
+      if (zavi->audiowritten > 0) {
+        // audio stream list
+        AVIOUT4("LIST");
+        AVIOUTd(4+8+56+8+16); // Length of list in bytes
+        AVIOUT4("strl");
+        // the audio stream header
+        AVIOUT4("strh");
+        AVIOUTd(56); // # of bytes to follow
+        AVIOUT4("auds");
+        AVIOUTd(0); // Format (Optionally)
+        AVIOUTd(0); // Flags
+        AVIOUTd(0); // Reserved, MS says: wPriority, wLanguage
+        AVIOUTd(0); // InitialFrames
+        AVIOUTd(4); // Scale
+        AVIOUTd(zavi->audiorate*4); // rate, actual rate is scale/rate
+        AVIOUTd(0); // Start
+        if (!zavi->audiorate) zavi->audiorate = 1;
+        AVIOUTd(zavi->audiowritten/4); // Length
+        AVIOUTd(0); // SuggestedBufferSize
+        AVIOUTd(~0); // Quality
+        AVIOUTd(4); // SampleSize
+        AVIOUTd(0); // Frame
+        AVIOUTd(0); // Frame
+        // the audio stream format
+        AVIOUT4("strf");
+        AVIOUTd(16); // # of bytes to follow
+        AVIOUTw(1); // Format, WAVE_ZMBV_FORMAT_PCM
+        AVIOUTw(2); // Number of channels
+        AVIOUTd(zavi->audiorate); // SamplesPerSec
+        AVIOUTd(zavi->audiorate*4); // AvgBytesPerSec
+        AVIOUTw(4); // BlockAlign
+        AVIOUTw(16); // BitsPerSample
+      }
       int nmain = header_pos-main_list-4;
       // finish stream list, i.e. put number of bytes in the list to proper pos
       int njunk = AVI_HEADER_SIZE-8-12-header_pos;
