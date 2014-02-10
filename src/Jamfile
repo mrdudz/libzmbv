@@ -9,5 +9,10 @@ Main zmbv_unpack : unpack.c ;
 LinkLibraries zmbv_unpack : libzmbv.a ;
 LINKFLAGS on zmbv_unpack += -lz ;
 
+Main zmbv_unpack_small : unpack_small.c ;
+LinkLibraries zmbv_unpack_small : libzmbvu.a ;
+LINKFLAGS on zmbv_unpack_small += -lz ;
+
 
 SubInclude TOP src libzmbv ;
+SubInclude TOP src libzmbvu ;
