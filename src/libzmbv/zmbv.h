@@ -54,7 +54,8 @@ extern int zmbv_work_buffer_size (int width, int height, zmbv_format_t fmt);
 
 
 typedef enum {
-  ZMBV_INIT_FLAG_NONE = 0
+  ZMBV_INIT_FLAG_NONE = 0,
+  ZMBV_INIT_FLAG_NOZLIB = 0x01 /* note that this will not 'turn off' zlib initializing */
 } zmvb_init_flags_t;
 
 /* complevel values */

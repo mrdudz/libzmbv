@@ -450,8 +450,10 @@ int zmbv_encode_setup (zmbv_codec_t zc, int width, int height) {
     zc->pitch = width+2*MAX_VECTOR;
     zc->format = ZMBV_FORMAT_NONE;
     zmbv_zlib_deinit(zc);
-    if (deflateInit(&zc->zstream, zc->complevel) != Z_OK) return -1;
-    zc->zstream_inited = -1;
+    if ((zc->init_flags&ZMBV_INIT_FLAG_NOZLIB) == 0) {
+      if (deflateInit(&zc->zstream, zc->complevel) != Z_OK) return -1;
+      zc->zstream_inited = -1;
+    }
     zc->mode = ZMBV_MODE_ENCODER;
     return 0;
   }
@@ -505,7 +507,7 @@ int zmbv_encode_prepare_frame (zmbv_codec_t zc, zmvb_prepare_flags_t flags, zmbv
     zmbv_keyframe_header_t *header = (zmbv_keyframe_header_t *)(zc->compress.outbuf+zc->compress.write_done);
     header->high_version = DBZV_VERSION_HIGH;
     header->low_version = DBZV_VERSION_LOW;
-    header->compression = COMPRESSION_ZLIB;
+    header->compression = ((zc->init_flags&ZMBV_INIT_FLAG_NOZLIB) == 0 ? COMPRESSION_ZLIB : COMPRESSION_NONE);
     header->format = zc->format;
     header->blockwidth = 16;
     header->blockheight = 16;
@@ -525,7 +527,9 @@ int zmbv_encode_prepare_frame (zmbv_codec_t zc, zmvb_prepare_flags_t flags, zmbv
       }
     }
     /* restart deflate */
-    if (deflateReset(&zc->zstream) != Z_OK) return -1;
+    if ((zc->init_flags&ZMBV_INIT_FLAG_NOZLIB) == 0) {
+      if (deflateReset(&zc->zstream) != Z_OK) return -1;
+    }
   } else {
     if (zc->palsize && plt != NULL && memcmp(plt, zc->palette, zc->palsize*3) != 0) {
       *firstByte |= FRAME_MASK_DELTA_PALETTE;
@@ -584,15 +588,19 @@ int zmvb_encode_finish_frame (zmbv_codec_t zc) {
         default: return -1; /* the thing that should not be */
       }
     }
-    /* create the actual frame with compression */
-    zc->zstream.next_in = (Bytef *)zc->work;
-    zc->zstream.avail_in = zc->workUsed;
-    zc->zstream.total_in = 0;
-    zc->zstream.next_out = (Bytef *)(zc->compress.outbuf+zc->compress.write_done);
-    zc->zstream.avail_out = zc->compress.outbuf_size-zc->compress.write_done;
-    zc->zstream.total_out = 0;
-    if (deflate(&zc->zstream, Z_SYNC_FLUSH) != Z_OK) return -1; /* the thing that should not be */
-    return zc->compress.write_done+zc->zstream.total_out;
+    if ((zc->init_flags&ZMBV_INIT_FLAG_NOZLIB) == 0) {
+      /* create the actual frame with compression */
+      zc->zstream.next_in = (Bytef *)zc->work;
+      zc->zstream.avail_in = zc->workUsed;
+      zc->zstream.total_in = 0;
+      zc->zstream.next_out = (Bytef *)(zc->compress.outbuf+zc->compress.write_done);
+      zc->zstream.avail_out = zc->compress.outbuf_size-zc->compress.write_done;
+      zc->zstream.total_out = 0;
+      if (deflate(&zc->zstream, Z_SYNC_FLUSH) != Z_OK) return -1; /* the thing that should not be */
+      return zc->compress.write_done+zc->zstream.total_out;
+    } else {
+      memcpy(zc->compress.outbuf, zc->work, zc->workUsed);
+    }
   }
   return -1;
 }
