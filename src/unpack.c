@@ -48,6 +48,9 @@ static void zmbv_open (void) {
 static void zmbv_close (void) {
   if (zmbv_fd >= 0) close(zmbv_fd);
   zmbv_fd = -1;
+  if (packed != NULL) free(packed);
+  packed = NULL;
+  packed_size = 0;
 }
 
 
@@ -90,22 +93,14 @@ static int next_screen (zmbv_codec_t zc) {
 ////////////////////////////////////////////////////////////////////////////////
 static int do_decode_screens (int (*writer)(void *udata), void *udata) {
   int res = -1;
-  zmbv_format_t fmt;
-  int buf_size;
-  void *buf;
   zmbv_codec_t zc;
   zc = zmbv_codec_new(ZMBV_INIT_FLAG_NONE, -1);
   if (zc == NULL) { printf("FATAL: can't create codec!\n"); return -1; }
-  fmt = zmbv_bpp_to_format(8);
-  buf_size = zmbv_work_buffer_size(320, 240, fmt);
-  //printf("buf_size: %d\n", buf_size);
-  buf = malloc(buf_size);
-  if (buf == NULL) goto quit;
-  if (zmbv_decode_setup(zc, 320, 240) < 0) { printf("FATAL: can't init encoder!\n"); goto quit; }
+  if (zmbv_decode_setup(zc, 320, 240) < 0) { printf("FATAL: can't init decoder!\n"); goto quit; }
   frameno = 0;
   while (next_screen(zc)) {
     if (writer != NULL && writer(udata) < 0) {
-      printf("\rFATAL: can't write compressed frame for screen #%d\n", frameno);
+      printf("\rFATAL: can't write uncompressed frame for screen #%d\n", frameno);
       break;
     }
   }
@@ -115,7 +110,6 @@ static int do_decode_screens (int (*writer)(void *udata), void *udata) {
     printf("\rFATAL: invalid number of frames read; got %d, expected %d\n", frameno, screen_count);
   }
 quit:
-  if (buf != NULL) free(buf);
   zmbv_codec_free(zc);
   return res;
 }

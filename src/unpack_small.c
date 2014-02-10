@@ -47,6 +47,9 @@ static void zmbvu_open (void) {
 static void zmbvu_close (void) {
   if (zmbv_fd >= 0) close(zmbv_fd);
   zmbv_fd = -1;
+  if (packed != NULL) free(packed);
+  packed = NULL;
+  packed_size = 0;
 }
 
 
