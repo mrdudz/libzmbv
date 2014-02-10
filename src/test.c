@@ -24,6 +24,7 @@ static int screen_count = 0;
 static int screen_alloted = 0;
 static uint8_t cur_pal[256*3];
 static uint8_t cur_screen[320*240];
+static int frameno;
 
 
 static zmvb_init_flags_t iflg = ZMBV_INIT_FLAG_NONE;
@@ -74,6 +75,7 @@ static void scan_screens (void) {
     }
   }
   printf("%d screens found\n", screen_count);
+  frameno = 0;
 }
 
 
@@ -89,121 +91,96 @@ static void finish_screens (void) {
 ////////////////////////////////////////////////////////////////////////////////
 static void load_screen (int idx) {
   if (idx >= 0 && idx < screen_count) {
-    uint8_t pal[768];
     lseek(screen_fd, screens[idx].scrofs, SEEK_SET);
     read(screen_fd, cur_screen, 320*240);
     lseek(screen_fd, screens[idx].palofs, SEEK_SET);
-    read(screen_fd, pal, 768);
-    for (int f = 0; f < 256; ++f) {
-      /*
-      uint8_t r = 255*pal[f*3+0]/63;
-      uint8_t g = 255*pal[f*3+0]/63;
-      uint8_t b = 255*pal[f*3+0]/63;
-      */
-      //cur_pal[f] = rgb2col(pal[f*3+0], pal[f*3+1], pal[f*3+2]);
-      cur_pal[f*3+0] = pal[f*3+0];
-      cur_pal[f*3+1] = pal[f*3+1];
-      cur_pal[f*3+2] = pal[f*3+2];
-    }
+    read(screen_fd, cur_pal, 768);
   }
 }
 
 
+static int next_screen (void) {
+  if (frameno < screen_count) {
+    load_screen(frameno++);
+    return 1;
+  }
+  return 0;
+}
+
+
 ////////////////////////////////////////////////////////////////////////////////
-static void encode_screens (void) {
+static int do_encode_screens (int (*writer) (void *udata, const void *buf, uint32_t size), void *udata) {
+  int res = -1;
   zmbv_format_t fmt;
   int buf_size;
   int32_t written;
   void *buf;
   zmbv_codec_t zc;
-  FILE *fo;
   zc = zmbv_codec_new(iflg, complevel);
-  if (zc == NULL) { printf("FATAL: can't create codec!\n"); return; }
+  if (zc == NULL) { printf("FATAL: can't create codec!\n"); return -1; }
   fmt = zmbv_bpp_to_format(8);
   buf_size = zmbv_work_buffer_size(320, 240, fmt);
-  printf("buf_size: %d\n", buf_size);
+  //printf("buf_size: %d\n", buf_size);
   buf = malloc(buf_size);
   if (buf == NULL) goto quit;
   if (zmbv_encode_setup(zc, 320, 240) < 0) { printf("FATAL: can't init encoder!\n"); goto quit; }
-  fo = fopen("stream.zmbv", "w");
-  if (fo == NULL) { printf("FATAL: can't create output file!\n"); goto quit; }
-  for (int f = 0; f < screen_count; ++f) {
-    int flags = (f%300 ? ZMBV_PREP_FLAG_NONE : ZMBV_PREP_FLAG_KEYFRAME);
-    //if (f%256 == 0) printf("\r [%d/%d]\r", f, screen_count);
-    load_screen(f);
+  frameno = 0;
+  while (next_screen()) {
+    int flags = (frameno%300 ? ZMBV_PREP_FLAG_NONE : ZMBV_PREP_FLAG_KEYFRAME);
     if (zmbv_encode_prepare_frame(zc, flags, fmt, cur_pal, buf, buf_size) < 0) {
-      printf("\rFATAL: can't prepare frame for screen #%d\n", f);
+      printf("\rFATAL: can't prepare frame for screen #%d\n", frameno);
       break;
     }
     for (int y = 0; y < 240; ++y) {
       if (zmbv_encode_line(zc, cur_screen+y*320) < 0) {
-        printf("\rFATAL: can't encode line #%d for screen #%d\n", y, f);
+        printf("\rFATAL: can't encode line #%d for screen #%d\n", y, frameno);
         break;
       }
     }
     written = zmvb_encode_finish_frame(zc);
     if (written < 0) {
-      printf("\rFATAL: can't finish frame for screen #%d\n", f);
+      printf("\rFATAL: can't finish frame for screen #%d\n", frameno);
       break;
     }
-    fwrite(&written, 4, 1, fo);
-    if (written > 0) fwrite(buf, written, 1, fo);
+    if (writer != NULL && writer(udata, buf, written) < 0) {
+      printf("\rFATAL: can't write compressed frame for screen #%d\n", frameno);
+      break;
+    }
   }
-  //printf("\r [%d/%d]\n", screen_count, screen_count);
-  fclose(fo);
+  res = 0;
 quit:
   if (buf != NULL) free(buf);
   zmbv_codec_free(zc);
+  return res;
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
+static int writer_avi (void *udata, const void *buf, uint32_t size) {
+  return zmbv_avi_write_chunk_video(udata, buf, size);
+}
+
+
 static void encode_screens_to_avi (void) {
-  zmbv_format_t fmt;
-  int buf_size;
-  int32_t written;
-  void *buf;
-  zmbv_codec_t zc;
   zmbv_avi_t zavi;
-  zc = zmbv_codec_new(iflg, complevel);
-  if (zc == NULL) { printf("FATAL: can't create codec!\n"); return; }
-  fmt = zmbv_bpp_to_format(8);
-  buf_size = zmbv_work_buffer_size(320, 240, fmt);
-  printf("buf_size: %d\n", buf_size);
-  buf = malloc(buf_size);
-  if (buf == NULL) goto quit;
-  if (zmbv_encode_setup(zc, 320, 240) < 0) { printf("FATAL: can't init encoder!\n"); goto quit; }
   zavi = zmbv_avi_start("stream.avi", 320, 240, 18);
-  if (zavi == NULL) { printf("FATAL: can't create output file!\n"); goto quit; }
-  for (int f = 0; f < screen_count; ++f) {
-    int flags = (f%300 ? ZMBV_PREP_FLAG_NONE : ZMBV_PREP_FLAG_KEYFRAME);
-    //if (f%256 == 0) printf("\r [%d/%d]\r", f, screen_count);
-    load_screen(f);
-    if (zmbv_encode_prepare_frame(zc, flags, fmt, cur_pal, buf, buf_size) < 0) {
-      printf("\rFATAL: can't prepare frame for screen #%d\n", f);
-      break;
-    }
-    for (int y = 0; y < 240; ++y) {
-      if (zmbv_encode_line(zc, cur_screen+y*320) < 0) {
-        printf("\rFATAL: can't encode line #%d for screen #%d\n", y, f);
-        break;
-      }
-    }
-    written = zmvb_encode_finish_frame(zc);
-    if (written < 0) {
-      printf("\rFATAL: can't finish frame for screen #%d\n", f);
-      break;
-    }
-    if (zmbv_avi_write_chunk_video(zavi, buf, written) < 0) {
-      printf("\rFATAL: can't write video data for screen #%d\n", f);
-      break;
-    }
-  }
-  //printf("\r [%d/%d]\n", screen_count, screen_count);
+  if (zavi == NULL) { printf("FATAL: can't create output file!\n"); return; }
+  do_encode_screens(writer_avi, zavi);
   zmbv_avi_stop(zavi);
-quit:
-  if (buf != NULL) free(buf);
-  zmbv_codec_free(zc);
+}
+
+
+////////////////////////////////////////////////////////////////////////////////
+static int writer_bin (void *udata, const void *buf, uint32_t size) {
+  return (write((long)udata, buf, size) == size ? 0 : -1);
+}
+
+
+static void encode_screens_to_bin (void) {
+  int fd = open("stream.zmbv", O_WRONLY|O_CREAT|O_TRUNC, 0644);
+  if (fd < 0) { printf("FATAL: can't create output file!\n"); return; }
+  do_encode_screens(writer_bin, (void *)fd);
+  close(fd);
 }
 
 
@@ -216,7 +193,7 @@ int main (int argc, char *argv[]) {
   }
   scan_screens();
   printf("encoding to zmbv...\n");
-  encode_screens();
+  encode_screens_to_bin();
   printf("encoding to avi...\n");
   encode_screens_to_avi();
   finish_screens();
