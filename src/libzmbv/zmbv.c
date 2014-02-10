@@ -113,8 +113,8 @@ struct zmbv_codec_s {
 
   zmbv_compress_t compress;
 
-  zmbv_codec_vector_t VectorTable[512];
-  int VectorCount;
+  zmbv_codec_vector_t vector_table[512];
+  int vector_count;
 
   uint8_t *oldframe, *newframe;
   uint8_t *buf1, *buf2, *work;
@@ -201,10 +201,10 @@ static inline void zmbv_add_xor_frame_##_pxsize (zmbv_codec_t zc) { \
     int bestvy = 0; \
     int bestchange = zmbv_compare_block_##_pxsize(zc, 0, 0, block); \
     int possibles = 64; \
-    for (int v = 0; v < zc->VectorCount && possibles; ++v) { \
+    for (int v = 0; v < zc->vector_count && possibles; ++v) { \
       if (bestchange < 4) break; \
-      int vx = zc->VectorTable[v].x; \
-      int vy = zc->VectorTable[v].y; \
+      int vx = zc->vector_table[v].x; \
+      int vy = zc->vector_table[v].y; \
       if (zmbv_possible_block_##_pxsize(zc, vx, vy, block) < 4) { \
         --possibles; \
         if (possibles < 0) abort(); \
@@ -303,15 +303,15 @@ ZMBV_UNXOR_FRAME_TPL(uint32_t,32)
 /******************************************************************************/
 static void zmbv_create_vector_table (zmbv_codec_t zc) {
   if (zc != NULL) {
-    zc->VectorTable[0].x = zc->VectorTable[0].y = 0;
-    zc->VectorCount = 1;
+    zc->vector_table[0].x = zc->vector_table[0].y = 0;
+    zc->vector_count = 1;
     for (int s = 1; s <= 10; ++s) {
       for (int y = 0-s; y <= 0+s; ++y) {
         for (int x = 0-s; x <= 0+s; ++x) {
           if (abs(x) == s || abs(y) == s) {
-            zc->VectorTable[zc->VectorCount].x = x;
-            zc->VectorTable[zc->VectorCount].y = y;
-            ++zc->VectorCount;
+            zc->vector_table[zc->vector_count].x = x;
+            zc->vector_table[zc->vector_count].y = y;
+            ++zc->vector_count;
           }
         }
       }

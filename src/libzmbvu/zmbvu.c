@@ -92,10 +92,8 @@ typedef enum {
 struct zmbvu_unpacker_s {
   zmbvu_unpacker_mode_t mode;
 
-  //zmbvu_compress_t compress;
-
-  zmbvu_unpacker_vector_t VectorTable[512];
-  int VectorCount;
+  zmbvu_unpacker_vector_t vector_table[512];
+  int vector_count;
 
   uint8_t *oldframe, *newframe;
   uint8_t *buf1, *buf2, *work;
@@ -181,15 +179,15 @@ ZMBVU_UNXOR_FRAME_TPL(uint32_t,32)
 /******************************************************************************/
 static void zmbvu_create_vector_table (zmbvu_unpacker_t zc) {
   if (zc != NULL) {
-    zc->VectorTable[0].x = zc->VectorTable[0].y = 0;
-    zc->VectorCount = 1;
+    zc->vector_table[0].x = zc->vector_table[0].y = 0;
+    zc->vector_count = 1;
     for (int s = 1; s <= 10; ++s) {
       for (int y = 0-s; y <= 0+s; ++y) {
         for (int x = 0-s; x <= 0+s; ++x) {
           if (abs(x) == s || abs(y) == s) {
-            zc->VectorTable[zc->VectorCount].x = x;
-            zc->VectorTable[zc->VectorCount].y = y;
-            ++zc->VectorCount;
+            zc->vector_table[zc->vector_count].x = x;
+            zc->vector_table[zc->vector_count].y = y;
+            ++zc->vector_count;
           }
         }
       }
