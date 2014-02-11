@@ -1,17 +1,17 @@
 SubDir TOP src ;
 
 
-Main zmbvc : test.c ;
-LinkLibraries zmbvc : libzmbv.a ;
-#LINKFLAGS on zmbvc += -lz ;
+Main zmbvc$(BIN_SFX) : test.c ;
+LinkLibraries zmbvc$(BIN_SFX) : libzmbv.a ;
+if $(USE_ZLIB) { LINKFLAGS on zmbvc$(BIN_SFX) += -lz ; }
 
-Main zmbv_unpack : unpack.c ;
-LinkLibraries zmbv_unpack : libzmbv.a ;
-#LINKFLAGS on zmbv_unpack += -lz ;
+Main zmbv_unpack$(BIN_SFX) : unpack.c ;
+LinkLibraries zmbv_unpack$(BIN_SFX) : libzmbv.a ;
+if $(USE_ZLIB) { LINKFLAGS on zmbv_unpack$(BIN_SFX) += -lz ; }
 
-Main zmbv_unpack_small : unpack_small.c ;
-LinkLibraries zmbv_unpack_small : libzmbvu.a ;
-#LINKFLAGS on zmbv_unpack_small += -lz ;
+Main zmbv_unpack_small$(BIN_SFX) : unpack_small.c ;
+LinkLibraries zmbv_unpack_small$(BIN_SFX) : libzmbvu.a ;
+if $(USE_ZLIB) { LINKFLAGS on zmbv_unpack_small$(BIN_SFX) += -lz ; }
 
 
 SubInclude TOP src libzmbv ;
