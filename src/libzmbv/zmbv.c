@@ -37,6 +37,12 @@
 # define MZ_OK            Z_OK
 # define MZ_SYNC_FLUSH    Z_SYNC_FLUSH
 #else
+# ifdef MINIZ_NO_MALLOC
+#  undef MINIZ_NO_MALLOC
+# endif
+# ifdef MINIZ_NO_ZLIB_APIS
+#  undef MINIZ_NO_ZLIB_APIS
+# endif
 # include "miniz.c"
 # define mz_inflateReset(_strm)  ({ int res = mz_inflateEnd(_strm); if (res == MZ_OK) res = mz_inflateInit(_strm); res; })
 #endif
