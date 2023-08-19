@@ -11,6 +11,15 @@
 #include "libzmbv/zmbv.h"
 #include "libzmbv/zmbv_avi.h"
 
+#define NUM_COLORS      256
+#define COLORS_BPP      3
+
+#define PALETTE_SIZE    (NUM_COLORS * COLORS_BPP)
+
+#define VIDEO_WIDTH     320
+#define VIDEO_HEIGHT    240
+
+#define VIDEO_SIZE      (VIDEO_WIDTH * VIDEO_HEIGHT)
 
 ////////////////////////////////////////////////////////////////////////////////
 // each KEYFRAME_INTERVAL frame will be key one
@@ -36,8 +45,8 @@ typedef struct {
 
 static int screen_fd = -1;
 static int screen_count = 0;
-static uint8_t cur_pal[256*3];
-static uint8_t cur_screen[320*240];
+static uint8_t cur_pal[PALETTE_SIZE];
+static uint8_t cur_screen[VIDEO_SIZE];
 static int frameno;
 static int this_is_keyframe;
 static uint32_t *idxarray = NULL;
@@ -71,9 +80,9 @@ static void finish_screens (void) {
 ////////////////////////////////////////////////////////////////////////////////
 static void load_screen (int idx) {
   if (idx >= 0 && idx < screen_count) {
-    lseek(screen_fd, 4+idx*(320*240+768), SEEK_SET);
-    read(screen_fd, cur_pal, 768);
-    read(screen_fd, cur_screen, 320*240);
+    lseek(screen_fd, 4+idx*(VIDEO_SIZE+PALETTE_SIZE), SEEK_SET);
+    read(screen_fd, cur_pal, PALETTE_SIZE);
+    read(screen_fd, cur_screen, VIDEO_SIZE);
   }
 }
 
@@ -98,10 +107,10 @@ static int do_encode_screens (int (*writer) (void *udata, const void *buf, uint3
   zc = zmbv_codec_new(iflg, complevel);
   if (zc == NULL) { printf("FATAL: can't create codec!\n"); return -1; }
   fmt = zmbv_bpp_to_format(8);
-  buf_size = zmbv_work_buffer_size(320, 240, fmt);
+  buf_size = zmbv_work_buffer_size(VIDEO_WIDTH, VIDEO_HEIGHT, fmt);
   buf = malloc(buf_size);
   if (buf == NULL) goto quit;
-  if (zmbv_encode_setup(zc, 320, 240) < 0) { printf("FATAL: can't init encoder!\n"); goto quit; }
+  if (zmbv_encode_setup(zc, VIDEO_WIDTH, VIDEO_HEIGHT) < 0) { printf("FATAL: can't init encoder!\n"); goto quit; }
   frameno = 0;
   while (next_screen()) {
     this_is_keyframe = ((frameno-1)%KEYFRAME_INTERVAL == 0);
@@ -110,8 +119,8 @@ static int do_encode_screens (int (*writer) (void *udata, const void *buf, uint3
       printf("\rFATAL: can't prepare frame for screen #%d\n", frameno);
       break;
     }
-    for (int y = 0; y < 240; ++y) {
-      if (zmbv_encode_line(zc, cur_screen+y*320) < 0) {
+    for (int y = 0; y < VIDEO_HEIGHT; ++y) {
+      if (zmbv_encode_line(zc, cur_screen+y*VIDEO_WIDTH) < 0) {
         printf("\rFATAL: can't encode line #%d for screen #%d\n", y, frameno);
         break;
       }
@@ -142,7 +151,7 @@ static int writer_avi (void *udata, const void *buf, uint32_t size) {
 
 static void encode_screens_to_avi (void) {
   zmbv_avi_t zavi;
-  zavi = zmbv_avi_start(args.outname, 320, 240, 18);
+  zavi = zmbv_avi_start(args.outname, VIDEO_WIDTH, VIDEO_HEIGHT, 18);
   if (zavi == NULL) { printf("FATAL: can't create output file!\n"); return; }
   do_encode_screens(writer_avi, zavi);
   zmbv_avi_stop(zavi);
