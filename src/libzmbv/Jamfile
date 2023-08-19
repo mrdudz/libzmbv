@@ -1,7 +1,0 @@
-SubDir TOP src libzmbv ;
-
-
-Library libzmbv.a :
-  zmbv.c
-  zmbv_avi.c
-;

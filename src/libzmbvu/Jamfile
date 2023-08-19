@@ -1,6 +1,0 @@
-SubDir TOP src libzmbvu ;
-
-
-Library libzmbvu.a :
-  zmbvu.c
-;
