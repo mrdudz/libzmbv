@@ -151,7 +151,7 @@ static int writer_avi (void *udata, const void *buf, uint32_t size) {
 
 static void encode_screens_to_avi (void) {
   zmbv_avi_t zavi;
-  zavi = zmbv_avi_start(args.outname, VIDEO_WIDTH, VIDEO_HEIGHT, 18);
+  zavi = zmbv_avi_start(args.outname, VIDEO_WIDTH, VIDEO_HEIGHT, 18, 0);
   if (zavi == NULL) { printf("FATAL: can't create output file!\n"); return; }
   do_encode_screens(writer_avi, zavi);
   zmbv_avi_stop(zavi);

@@ -72,7 +72,7 @@ struct zmbv_avi_s {
 };
 
 
-zmbv_avi_t zmbv_avi_start (const char *fname, int width, int height, int fps) {
+zmbv_avi_t zmbv_avi_start (const char *fname, int width, int height, int fps, int audiorate) {
   if (fname != NULL && fname[0] && width > 0 && height > 0 && width <= 16384 && height <= 16384 && fps > 0 && fps <= 100) {
     zmbv_avi_t zavi = malloc(sizeof(*zavi));
     if (zavi == NULL) return NULL;
@@ -95,6 +95,7 @@ zmbv_avi_t zmbv_avi_start (const char *fname, int width, int height, int fps) {
     zavi->frames = 0;
     zavi->written = 0;
     //zavi->audioused = 0;
+    zavi->audiorate = audiorate;
     zavi->audiowritten = 0;
     return zavi;
 error:
