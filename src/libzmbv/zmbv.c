@@ -667,11 +667,11 @@ zmbv_format_t zmbv_get_decoded_format (zmbv_codec_t zc) {
   return (zc != NULL ? zc->format : ZMBV_FORMAT_NONE);
 }
 
-
+#if 0   /* FIXME: unused? */
 int zmbv_decode_palette_changed (zmbv_codec_t zc, const void *framedata, int size) {
   return (zc != NULL && framedata != NULL && size > 0 ? (((const uint8_t *)framedata)[0]&FRAME_MASK_DELTA_PALETTE) != 0 : 0);
 }
-
+#endif
 
 /******************************************************************************/
 int zmbv_decode_frame (zmbv_codec_t zc, const void *framedata, int size) {
