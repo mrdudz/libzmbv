@@ -4,6 +4,14 @@ C port of DOSBox ZMBV codec and AVI writer
 
 originally started by ketmar@ketmar.no-ip.org at https://repo.or.cz/libzmbv.git
 
+Done since then:
+
+- options have been inverted, by default it will link against libz and omit the
+  encoder in libzbmv
+- zmbv_avi_start() takes an additional paramert (audio frequency)
+- added "test-avi" sample that shows how to write out an AVI with sound
+- a couple formatting changes to fix some warnings
+
 # ZMBV
 
 Info copied from https://wiki.multimedia.cx/index.php/DosBox_Capture_Codec
@@ -11,6 +19,7 @@ Info copied from https://wiki.multimedia.cx/index.php/DosBox_Capture_Codec
 DosBox Capture Codec, added to the DosBox project to capture screen data
 
 FourCC: ZMBV
+
 Samples: http://samples.mplayerhq.hu/V-codecs/ZMBV/
 
 This codec employs ZLIB compression and has intraframes and delta frames. Delta frames seem to have blocks either copied from the previous frame or XOR'ed with some block from the previous frame.
