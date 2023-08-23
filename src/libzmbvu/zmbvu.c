@@ -22,7 +22,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef ZMBVU_USE_ZLIB
+#ifndef ZMBVU_USE_MINIZ
 # include <zlib.h>
 # define mz_deflateInit   deflateInit
 # define mz_inflateInit   inflateInit
