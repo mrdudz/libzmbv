@@ -9,8 +9,9 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 
-#define ZMBV_USE_ZLIB
-#define ZMBV_EXCLUDE_DECODER
+/* NOTE: options should be supplied at build time of the library (zmbv*.c) files */
+/*#define ZMBV_USE_MINIZ*/
+/*#define ZMBV_INCLUDE_DECODER*/
 #include "libzmbv/zmbv.h"
 #include "libzmbv/zmbv_avi.h"
 
