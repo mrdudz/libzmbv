@@ -72,7 +72,7 @@ static void generate_video_frame (int idx) {
 #if 1
     for (y = 0; y < VIDEO_HEIGHT; ++y) {
         for (x = 0; x < VIDEO_WIDTH; ++x) {
-            cur_screen[(y * VIDEO_WIDTH) + x] = ((x*3) + idx * 7 ^ (y*1) + idx) & 0xff;
+            cur_screen[(y * VIDEO_WIDTH) + x] = (((x * 3) + ((idx * 7) ^ ((y * 1) + idx)))) & 0xff;
         }
     }
 #endif
@@ -95,6 +95,7 @@ static double get_audio_sample(void)
 
 static void generate_audio_frame (int idx) {
     int x;
+    idx = idx; /* get rid of warning */
     for (x = 0; x < AUDIO_BUFFER_SIZE; x+=2) {
         double smp = get_audio_sample() * 4000.0f;
         cur_audio[x] = (int16_t)smp;
@@ -199,18 +200,21 @@ static void encode_screens_to_avi (char *outname) {
 
 ////////////////////////////////////////////////////////////////////////////////
 int main (int argc, char *argv[]) {
-  complevel = 4;
+    argc = argc; /* get rid of warning */
+    argv = argv; /* get rid of warning */
+
+    complevel = 4;
 
 #ifdef ZMBV_USE_MINIZ
-  iflg |= ZMBV_INIT_FLAG_NOZLIB;
+    iflg |= ZMBV_INIT_FLAG_NOZLIB;
 #endif
-  printf("using compression level %d\n", complevel);
+    printf("using compression level %d\n", complevel);
 
-  max_frames_count = VIDEO_NUM_FRAMES;
-  printf("generating %d frames\n", max_frames_count);
+    max_frames_count = VIDEO_NUM_FRAMES;
+    printf("generating %d frames\n", max_frames_count);
 
-  printf("encoding to avi...\n");
-  encode_screens_to_avi("outstream.avi");
+    printf("encoding to avi...\n");
+    encode_screens_to_avi("outstream.avi");
 
-  return 0;
+    return 0;
 }
