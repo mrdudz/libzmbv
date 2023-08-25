@@ -8,9 +8,11 @@ Done since then:
 
 - options have been inverted, by default it will link against libz and omit the
   encoder in libzbmv
-- zmbv_avi_start() takes an additional paramert (audio frequency)
+- zmbv_avi_start() takes an additional parameter (audio frequency)
 - added "test-avi" sample that shows how to write out an AVI with sound
 - a couple formatting changes to fix some warnings
+- AVI writer works on Windows and Linux
+- compiles (and works) with GCC and clang/llvm
 
 # ZMBV
 
