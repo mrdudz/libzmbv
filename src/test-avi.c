@@ -31,12 +31,13 @@
 
 #define VIDEO_FPS           50
 #define VIDEO_NUM_FRAMES    (VIDEO_FPS * 30)    // 30 seconds
-//#define VIDEO_NUM_FRAMES    1
+//#define VIDEO_NUM_FRAMES    20
 
 #define AUDIO_FREQ          48000
 #define AUDIO_CHANNELS      2
 
 #define AUDIO_SIZE          (AUDIO_FREQ / VIDEO_FPS)
+#define AUDIO_BUFFER_SIZE   (AUDIO_SIZE * AUDIO_CHANNELS)
 
 ////////////////////////////////////////////////////////////////////////////////
 // each KEYFRAME_INTERVAL frame will be key one
@@ -56,7 +57,7 @@ static int verbose = 0;
 static uint8_t cur_pal[PALETTE_SIZE];
 static uint8_t cur_screen[VIDEO_SIZE];
 
-static int16_t cur_audio[AUDIO_SIZE * AUDIO_CHANNELS];
+static int16_t cur_audio[AUDIO_BUFFER_SIZE];
 
 ////////////////////////////////////////////////////////////////////////////////
 static void generate_video_frame (int idx) {
@@ -95,7 +96,7 @@ static double get_audio_sample(void)
 
 static void generate_audio_frame (int idx) {
     int x;
-    for (x = 0; x < AUDIO_SIZE*4; x+=2) {
+    for (x = 0; x < AUDIO_BUFFER_SIZE; x+=2) {
         double smp = get_audio_sample() * 4000.0f;
         cur_audio[x] = (int16_t)smp;
         cur_audio[x+1] = (int16_t)smp;
@@ -134,9 +135,10 @@ static int do_encode_screens (zmbv_avi_t zavi) {
     while (frameno < max_frames_count) {
 
         flags = ((frameno % KEYFRAME_INTERVAL == 0) ? ZMBV_PREP_FLAG_KEYFRAME : ZMBV_PREP_FLAG_NONE);
-
+#if 1
         generate_audio_frame(frameno);
         generate_video_frame(frameno);
+#endif
         frameno++;
 
         if (verbose > 1) {
@@ -159,21 +161,27 @@ static int do_encode_screens (zmbv_avi_t zavi) {
             printf("FATAL: can't finish frame for screen #%d\n", frameno);
             break;
         }
+#else
+        written = 10;
+#endif
+#if 1
         // write avi chunk
         if (zmbv_avi_write_chunk_video(zavi, buf, written) < 0) {
-            printf("FATAL: can't write compressed frame for screen #%d\n", frameno);
+            printf("FATAL: can't write video frame for screen #%d\n", frameno);
             break;
         }
 #endif
+#if 1
         // write avi chunks
         if (zmbv_avi_write_chunk_audio(zavi, cur_audio, AUDIO_SIZE) < 0) {
             printf("FATAL: can't write audio frame for screen #%d\n", frameno);
             break;
         }
+#endif
     }
     res = 0;
 quit:
-    if (buf != NULL) free(buf);
+    if (buf != NULL) { free(buf); }
     zmbv_codec_free(zcodec);
     return res;
 }
