@@ -2,4 +2,8 @@ src/test
 src/test-avi
 src/unpack
 src/unpack_small
+src/test.exe
+src/test-avi.exe
+src/unpack.exe
+src/unpack_small.exe
 outstream.avi
