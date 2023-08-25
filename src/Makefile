@@ -13,7 +13,7 @@ LIBS+=./libzmbv/zmbv_avi.c
 UNPINCLUDE+=-I ./libzmbvu
 UNPLIBS+=./libzmbvu/zmbvu.c
 
-CCOPTS+=-O0
+CCOPTS+=-O0 -g -pg
 CCOPTS+=-W -Wall -Wextra
 #this might make a difference on windows?
 #CCOPTS+=-mno-ms-bitfields
