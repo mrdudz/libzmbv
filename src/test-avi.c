@@ -31,7 +31,6 @@
 
 #define VIDEO_FPS           50
 #define VIDEO_NUM_FRAMES    (VIDEO_FPS * 30)    // 30 seconds
-//#define VIDEO_NUM_FRAMES    20
 
 #define AUDIO_FREQ          48000
 #define AUDIO_CHANNELS      2
