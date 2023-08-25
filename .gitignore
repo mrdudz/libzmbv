@@ -7,3 +7,4 @@ src/test-avi.exe
 src/unpack.exe
 src/unpack_small.exe
 outstream.avi
+gmon.out
