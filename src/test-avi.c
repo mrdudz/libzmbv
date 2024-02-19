@@ -199,9 +199,7 @@ static void encode_screens_to_avi (char *outname) {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-int main (int argc, char *argv[]) {
-    argc = argc; /* get rid of warning */
-    argv = argv; /* get rid of warning */
+int main (void) {
 
     complevel = 4;
 
