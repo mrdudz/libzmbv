@@ -134,10 +134,7 @@ static void decode_screens (void) {
 
 
 ////////////////////////////////////////////////////////////////////////////////
-int main (int argc, char *argv[]) {
-  argc = argc; /* get rid of warning */
-  argv = argv; /* get rid of warning */
-
+int main (void) {
   zmbvu_open();
   decode_screens();
   zmbvu_close();
