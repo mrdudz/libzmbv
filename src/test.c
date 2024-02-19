@@ -185,7 +185,7 @@ static void encode_screens_to_bin (void) {
   write(fd, &scc, 4);
   // idxarray offset
   write(fd, &scc, 4);
-  do_encode_screens(writer_bin, (void *)fd);
+  do_encode_screens(writer_bin, (void *)(intptr_t)fd);
   // write idxarray
   scc = lseek(fd, 0, SEEK_CUR);
   write(fd, idxarray, index_ptr*sizeof(idxarray[0]));
