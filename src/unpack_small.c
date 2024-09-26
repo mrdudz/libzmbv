@@ -128,16 +128,13 @@ static void decode_screens (void) {
   if (fd < 0) { printf("FATAL: can't create output file!\n"); return; }
   scc = screen_count;
   write(fd, &scc, 4);
-  do_decode_screens(writer_bin, (void *)fd);
+  do_decode_screens(writer_bin, (void *)(intptr_t)fd);
   close(fd);
 }
 
 
 ////////////////////////////////////////////////////////////////////////////////
-int main (int argc, char *argv[]) {
-  argc = argc; /* get rid of warning */
-  argv = argv; /* get rid of warning */
-
+int main (void) {
   zmbvu_open();
   decode_screens();
   zmbvu_close();
