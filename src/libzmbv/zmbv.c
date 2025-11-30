@@ -283,6 +283,8 @@ ZMBV_ADD_XOR_FRAME_TPL(uint32_t,32)
 
 
 /* decoder templates */
+#ifdef ZMBV_INCLUDE_DECODER
+
 #define ZMBV_UNXOR_BLOCK_TPL(_pxtype,_pxsize) \
 static inline void zmbv_unxor_block_##_pxsize (zmbv_codec_t zc, int vx, int vy, zmbv_frame_block_t *block) { \
   _pxtype *pold = ((_pxtype *)zc->oldframe)+block->start+(vy*zc->pitch)+vx; \
@@ -338,6 +340,7 @@ ZMBV_UNXOR_FRAME_TPL(uint8_t,  8)
 ZMBV_UNXOR_FRAME_TPL(uint16_t,16)
 ZMBV_UNXOR_FRAME_TPL(uint32_t,32)
 
+#endif  /* ZMBV_INCLUDE_DECODER */
 
 /******************************************************************************/
 static void zmbv_create_vector_table (zmbv_codec_t zc) {
