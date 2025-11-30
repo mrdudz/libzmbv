@@ -47,6 +47,8 @@
 #define ATTR_PACKED __attribute__((packed))
 #elif defined(__GNUC__)
 #define ATTR_PACKED __attribute__((packed,gcc_struct))
+#elif defined(_MSC_VER)
+#define ATTR_PACKED
 #else
 #warn "make sure to define ATTR_PACKED for your compiler"
 #define ATTR_PACKED
@@ -91,6 +93,9 @@ typedef struct {
   int slot;
 } zmbvu_unpacker_vector_t;
 
+#ifdef _MSC_VER
+#pragma pack(push, 1)
+#endif
 
 typedef struct ATTR_PACKED {
   uint8_t high_version;
@@ -101,6 +106,9 @@ typedef struct ATTR_PACKED {
   uint8_t blockheight;
 } zmbvu_keyframe_header_t;
 
+#ifdef _MSC_VER
+#pragma pack(pop)
+#endif
 
 typedef enum {
   ZMBVU_MODE_UNKNOWN,
